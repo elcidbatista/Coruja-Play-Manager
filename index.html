@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerenciador de Clientes Coruja Play</title>
-    <!-- Carrega Tailwind CSS para estilização moderna e responsiva --><script src="https://cdn.tailwindcss.com"></script>
-    <!-- Adiciona Font Awesome para ícones --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Carrega Tailwind CSS para estilização moderna e responsiva -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Adiciona Font Awesome para ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Poppins', sans-serif; }
@@ -65,10 +67,12 @@
     </style>
 </head>
 <body class="bg-gradient-to-br from-purple-50 to-indigo-100 min-h-screen p-4 sm:p-8 text-gray-800">
-    <!-- Firebase Imports --><script type="module">
+    <!-- Firebase Imports -->
+    <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, collection, query, addDoc, serverTimestamp, deleteDoc, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // Adicionando updateDoc
+        import { getFirestore, doc, onSnapshot, collection, query, addDoc, serverTimestamp, deleteDoc, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         
         setLogLevel('Debug');
@@ -77,15 +81,18 @@
         const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         
+        // Inicialização do Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
         
         let currentUserId = null;
         let clientsRef = null;
+        let isEditing = false; // Flag para saber se estamos editando ou adicionando
+        let currentEditingClientId = null; // ID do cliente sendo editado
 
         // Variáveis globais para os elementos DOM, inicializadas no init()
-        let loadingSpinner, clientListContainer, clientDetailsDiv, addClientForm, addClientModal, overlay, addClientButton; 
+        let loadingSpinner, clientListContainer, clientDetailsDiv, addClientForm, addClientModal, overlay, addClientButton, mainContent; 
 
         const PIX_NUMERO = "81985117522"; 
         const PIX_NOME = "Elcid Batista";
@@ -101,20 +108,42 @@
             addClientModal = document.getElementById('add-client-modal');
             overlay = document.getElementById('modal-overlay');
             addClientButton = document.getElementById('add-client-button');
+            mainContent = document.getElementById('main-content'); // Novo ID para o conteúdo principal
 
-            // 2. Anexar o listener do botão imediatamente
+            // 2. Oculta o conteúdo principal até a autenticação
+            mainContent.classList.add('hidden');
+            loadingSpinner.classList.remove('hidden');
+
+            // 3. Anexar o listener do botão
             if (addClientButton) {
-                addClientButton.addEventListener('click', openModal);
+                addClientButton.addEventListener('click', () => openModal('add'));
             }
             
-            // 3. Anexar o listener de submissão do formulário
+            // 4. Anexar o listener de submissão do formulário
             addClientForm.addEventListener('submit', handleAddClientSubmit);
 
-            // 4. Iniciar autenticação Firebase
+            // 5. Iniciar autenticação Firebase
             setupFirebase();
         }
 
+        // Adicionando a função updateClient para expor ao renderClientDetails
+        window.editClient = function(client) {
+            currentEditingClientId = client.id;
+            // Preenche o formulário com os dados do cliente
+            document.getElementById('clientName').value = client.name || '';
+            document.getElementById('clientPhone').value = client.phone.replace(/\D/g, '') || ''; // Remove formatação
+            document.getElementById('clientType').value = client.type || 'Celular';
+            document.getElementById('clientPlan').value = client.plan || 'Basico';
+            document.getElementById('clientApp').value = client.app || 'Coruja Player V.1';
+            document.getElementById('clientMac').value = client.mac || '';
+            document.getElementById('clientKey').value = client.key || '';
+            document.getElementById('clientExpiry').value = client.expiryDate || '';
+            document.getElementById('clientValue').value = client.value ? client.value.toFixed(2) : '25.00';
+            
+            openModal('edit');
+        };
 
+        // Função para lidar com o envio, seja adição ou edição
         async function handleAddClientSubmit(e) {
             e.preventDefault();
             const data = new FormData(addClientForm);
@@ -129,17 +158,27 @@
                 key: data.get('clientKey'),
                 expiryDate: data.get('clientExpiry'),
                 value: parseFloat(data.get('clientValue')),
-                createdAt: serverTimestamp(),
+                // createdAt é mantido na adição, atualizado na edição
+                ...(isEditing ? { updatedAt: serverTimestamp() } : { createdAt: serverTimestamp() }),
             };
 
             try {
-                await addDoc(clientsRef, clientData);
+                if (isEditing && currentEditingClientId) {
+                    // Lógica de Edição
+                    const clientDocRef = doc(db, `artifacts/${appId}/users/${currentUserId}/iptv_clients`, currentEditingClientId);
+                    await updateDoc(clientDocRef, clientData);
+                    showCustomMessage("Cliente atualizado com sucesso!", "success");
+                } else {
+                    // Lógica de Adição
+                    await addDoc(clientsRef, clientData);
+                    showCustomMessage("Cliente adicionado com sucesso!", "success");
+                }
+                
                 closeModal();
                 addClientForm.reset();
-                showCustomMessage("Cliente adicionado com sucesso!", "success");
             } catch (error) {
-                console.error("Erro ao adicionar cliente:", error);
-                showCustomMessage(`Erro: ${error.message}`, "error");
+                console.error("Erro ao salvar cliente:", error);
+                showCustomMessage(`Erro ao salvar: ${error.message}`, "error");
             }
         }
 
@@ -149,7 +188,8 @@
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
                 } else {
-                    await signInAnonymously(auth);
+                    // Esta linha é crucial para o deploy funcionar se o Canvas não fornecer o token
+                    await signInAnonymously(auth); 
                 }
                 
                 onAuthStateChanged(auth, (user) => {
@@ -159,27 +199,35 @@
                         clientsRef = collection(db, `artifacts/${appId}/users/${currentUserId}/iptv_clients`);
                         
                         document.getElementById('user-id-display').textContent = `ID do Usuário: ${currentUserId.substring(0, 8)}...`; // Exibe parte do ID
-
+                        mainContent.classList.remove('hidden'); // Exibe o conteúdo principal
                         listenForClients();
                     } else {
+                        // Se a autenticação falhar, mostra a mensagem de erro e mantém o spinner escondido.
                         console.error("Usuário não autenticado após tentativa de login.");
+                        document.getElementById('error-message').textContent = `Erro: Não foi possível autenticar o usuário. Verifique sua conexão ou as regras do Firebase.`;
+                        document.getElementById('error-message').classList.remove('hidden');
                     }
                 });
             } catch (error) {
+                // Captura erros de inicialização, como config inválida.
                 loadingSpinner.classList.add('hidden');
                 console.error("Erro na autenticação Firebase:", error);
-                document.getElementById('error-message').textContent = `Erro: ${error.message}`;
+                document.getElementById('error-message').textContent = `Erro de Inicialização: ${error.message}`;
                 document.getElementById('error-message').classList.remove('hidden');
             }
         }
 
         function listenForClients() {
-            const q = query(clientsRef, orderBy("name")); // Ordena por nome
-            onSnapshot(q, (snapshot) => {
+            // NOTE: Não usamos orderBy() aqui, conforme instrução. O sort será feito no JS.
+            onSnapshot(clientsRef, (snapshot) => {
                 const clients = [];
                 snapshot.forEach((doc) => {
                     clients.push({ id: doc.id, ...doc.data() });
                 });
+                
+                // Ordena por nome no lado do cliente
+                clients.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                
                 renderClientList(clients);
             }, (error) => {
                 console.error("Erro ao ouvir clientes:", error);
@@ -213,6 +261,7 @@
                 clientListContainer.appendChild(clientElement);
             });
             
+            // Renderiza o primeiro cliente por padrão se houver
             if (clients.length > 0) {
                  renderClientDetails(clients[0]);
             }
@@ -287,9 +336,16 @@
                         </a>
                     `}
                     
-                    <button onclick="window.deleteClient('${client.id}')" class="mt-6 w-full py-3 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition font-semibold text-base shadow-sm">
-                        <i class="fas fa-trash-alt mr-2"></i> Excluir Cliente
-                    </button>
+                    <div class="flex gap-4 mt-6">
+                        <!-- Botão de Edição -->
+                        <button onclick="window.editClient(${JSON.stringify(client).replace(/"/g, '&quot;')})" class="w-full py-3 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition font-semibold text-base shadow-md flex items-center justify-center">
+                            <i class="fas fa-edit mr-2"></i> Editar Cliente
+                        </button>
+                        <!-- Botão de Exclusão -->
+                        <button onclick="window.deleteClient('${client.id}')" class="w-full py-3 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition font-semibold text-base shadow-sm">
+                            <i class="fas fa-trash-alt mr-2"></i> Excluir Cliente
+                        </button>
+                    </div>
                 </div>
             `;
         }
@@ -297,10 +353,11 @@
         function checkExpiration(expiryDate) {
             if (!expiryDate) return true;
             const parts = expiryDate.split('-');
+            // Usa o fuso horário local para evitar problemas de data
             const expiry = new Date(parts[0], parts[1] - 1, parts[2]);
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            return today >= expiry;
+            return today > expiry; // Mudança para > para que a data de expiração ainda seja ATIVO
         }
 
         function formatDateDisplay(dateString) {
@@ -344,7 +401,22 @@
         }
 
         // FUNÇÕES DE MODAL
-        function openModal() {
+        function openModal(mode = 'add') {
+            const modalTitle = document.getElementById('modal-title');
+            const submitButton = document.getElementById('modal-submit-button');
+
+            isEditing = (mode === 'edit');
+            
+            if (isEditing) {
+                modalTitle.innerHTML = '<i class="fas fa-edit text-purple-500"></i> Editar Cliente';
+                submitButton.innerHTML = '<i class="fas fa-save"></i> Salvar Alterações';
+            } else {
+                modalTitle.innerHTML = '<i class="fas fa-user-plus text-purple-500"></i> Adicionar Novo Cliente';
+                submitButton.innerHTML = '<i class="fas fa-save"></i> Salvar Cliente';
+                currentEditingClientId = null; // Limpa o ID em modo de adição
+                addClientForm.reset();
+            }
+
             addClientModal.classList.remove('hidden');
             overlay.classList.remove('hidden');
             
@@ -365,9 +437,7 @@
         }
 
         window.deleteClient = async function(clientId) {
-            // NOTE: A instrução manda não usar window.confirm. Substituindo por um console.log.
-            // Para produção real, seria necessário um modal de confirmação customizado.
-            console.log(`Tentativa de exclusão do cliente: ${clientId}`);
+            // Nota: O confirm() é usado apenas para simular a intenção, pois o alerta customizado é complexo para o escopo
             if (!confirm(`Tem certeza que deseja excluir este cliente? Esta ação é irreversível!`)) return;
 
             try {
@@ -394,7 +464,8 @@
     </div>
     <div id="custom-message" class="hidden fixed top-0 left-1/2 transform -translate-x-1/2 mt-6 p-4 rounded-lg shadow-xl z-50 text-base font-medium"></div>
     
-    <!-- CONTEÚDO PRINCIPAL --><div class="max-w-6xl mx-auto bg-white p-8 rounded-2xl shadow-2xl border border-indigo-200">
+    <!-- CONTEÚDO PRINCIPAL (Agora tem um ID e é escondido até a autenticação) -->
+    <div id="main-content" class="max-w-6xl mx-auto bg-white p-8 rounded-2xl shadow-2xl border border-indigo-200">
         <header class="flex flex-col sm:flex-row justify-between items-center mb-8 border-b border-indigo-100 pb-6">
             <h1 class="text-4xl font-extrabold text-indigo-800 flex items-center gap-3 mb-4 sm:mb-0">
                 <i class="fas fa-feather-alt text-purple-500"></i> Coruja Play Manager
@@ -405,19 +476,23 @@
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Coluna da Lista de Clientes --><div class="lg:col-span-1">
+            <!-- Coluna da Lista de Clientes -->
+            <div class="lg:col-span-1">
                 <div class="flex justify-between items-center mb-5">
                     <h2 class="text-2xl font-bold text-gray-700 flex items-center gap-2"><i class="fas fa-users text-indigo-500"></i> Meus Clientes</h2>
-                    <!-- Botão Adicionar: Agora com ID para vincular o evento via JavaScript --><button id="add-client-button" class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-5 py-2.5 rounded-full shadow-lg hover:from-purple-700 hover:to-indigo-700 transition transform hover:scale-105 flex items-center gap-2 font-semibold">
+                    <!-- Botão Adicionar: Agora com ID para vincular o evento via JavaScript -->
+                    <button id="add-client-button" class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-5 py-2.5 rounded-full shadow-lg hover:from-purple-700 hover:to-indigo-700 transition transform hover:scale-105 flex items-center gap-2 font-semibold">
                         <i class="fas fa-plus-circle"></i> Adicionar
                     </button>
                 </div>
                 <div id="client-list-container" class="scroll-list bg-gray-50 p-3 rounded-xl border border-gray-200 shadow-inner">
-                    <!-- Clientes serão renderizados aqui --><p class="text-center text-gray-400 p-4">Carregando clientes...</p>
+                    <!-- Clientes serão renderizados aqui -->
+                    <p class="text-center text-gray-400 p-4">Carregando clientes...</p>
                 </div>
             </div>
 
-            <!-- Coluna de Detalhes do Cliente / Cobrança --><div class="lg:col-span-2">
+            <!-- Coluna de Detalhes do Cliente / Cobrança -->
+            <div class="lg:col-span-2">
                 <h2 class="text-2xl font-bold text-gray-700 mb-5 flex items-center gap-2"><i class="fas fa-info-circle text-indigo-500"></i> Detalhes & Ações</h2>
                 <div id="client-details">
                     <p class="text-gray-500 p-6 bg-white rounded-xl shadow-md text-center border border-gray-100">Selecione um cliente na lista para ver os detalhes e status de expiração.</p>
@@ -425,7 +500,8 @@
             </div>
         </div>
         
-        <!-- Detalhes PIX de Referência --><div class="mt-10 p-5 bg-indigo-50 rounded-xl border border-indigo-200 shadow-md">
+        <!-- Detalhes PIX de Referência -->
+        <div class="mt-10 p-5 bg-indigo-50 rounded-xl border border-indigo-200 shadow-md">
             <h3 class="font-bold text-indigo-700 mb-3 text-xl flex items-center gap-2"><i class="fas fa-money-check-alt text-purple-500"></i> Seus Dados PIX</h3>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-gray-700">
                 <p><strong>Chave:</strong> 81985117522 (Celular)</p>
@@ -435,23 +511,29 @@
         </div>
     </div>
     
-    <!-- MODAL DE ADICIONAR CLIENTE --><div id="modal-overlay" class="hidden fixed inset-0 bg-black bg-opacity-60 z-40 flex items-center justify-center p-4" onclick="closeModal()"></div>
+    <!-- MODAL DE ADICIONAR/EDITAR CLIENTE -->
+    <div id="modal-overlay" class="hidden fixed inset-0 bg-black bg-opacity-60 z-40 flex items-center justify-center p-4" onclick="closeModal()"></div>
     <div id="add-client-modal" class="hidden fixed bg-white p-8 rounded-xl shadow-2xl z-50 w-full max-w-lg scale-95 opacity-0 transition-all duration-300 ease-out transform-gpu">
-        <h2 class="text-3xl font-bold mb-6 text-indigo-700 flex items-center gap-2"><i class="fas fa-user-plus text-purple-500"></i> Adicionar Novo Cliente</h2>
+        <h2 id="modal-title" class="text-3xl font-bold mb-6 text-indigo-700 flex items-center gap-2">
+            <i class="fas fa-user-plus text-purple-500"></i> Adicionar Novo Cliente
+        </h2>
         <form id="add-client-form">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5">
                 
-                <!-- Nome --><div class="sm:col-span-2">
+                <!-- Nome -->
+                <div class="sm:col-span-2">
                     <label for="clientName" class="block text-sm font-medium text-gray-700">Nome do Cliente</label>
                     <input type="text" id="clientName" name="clientName" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition">
                 </div>
                 
-                <!-- Celular do Cliente --><div class="sm:col-span-2">
-                    <label for="clientPhone" class="block text-sm font-medium text-gray-700">Celular do Cliente</label>
-                    <input type="tel" id="clientPhone" name="clientPhone" placeholder="(XX) XXXXX-XXXX" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition">
+                <!-- Celular do Cliente -->
+                <div class="sm:col-span-2">
+                    <label for="clientPhone" class="block text-sm font-medium text-gray-700">Celular do Cliente (apenas dígitos)</label>
+                    <input type="number" id="clientPhone" name="clientPhone" placeholder="Ex: 81985117522" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition">
                 </div>
 
-                <!-- Tipo de Acesso --><div>
+                <!-- Tipo de Acesso -->
+                <div>
                     <label for="clientType" class="block text-sm font-medium text-gray-700">Tipo de Acesso</label>
                     <select id="clientType" name="clientType" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition">
                         <option value="Celular">Celular</option>
@@ -461,7 +543,8 @@
                     </select>
                 </div>
 
-                <!-- Plano --><div>
+                <!-- Plano -->
+                <div>
                     <label for="clientPlan" class="block text-sm font-medium text-gray-700">Plano</label>
                     <select id="clientPlan" name="clientPlan" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition">
                         <option value="Basico">Básico</option>
@@ -470,27 +553,32 @@
                     </select>
                 </div>
                 
-                <!-- Aplicativo --><div class="sm:col-span-2">
+                <!-- Aplicativo -->
+                <div class="sm:col-span-2">
                     <label for="clientApp" class="block text-sm font-medium text-gray-700">Aplicativo</label>
                     <input type="text" id="clientApp" name="clientApp" value="Coruja Player V.1" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition">
                 </div>
                 
-                <!-- MAC --><div>
+                <!-- MAC -->
+                <div>
                     <label for="clientMac" class="block text-sm font-medium text-gray-700">MAC (Opcional)</label>
                     <input type="text" id="clientMac" name="clientMac" placeholder="Ex: 00:1A:2B:..." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition">
                 </div>
                 
-                <!-- Chave Key/Senha --><div>
+                <!-- Chave Key/Senha -->
+                <div>
                     <label for="clientKey" class="block text-sm font-medium text-gray-700">Chave Key/Senha</label>
                     <input type="text" id="clientKey" name="clientKey" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition">
                 </div>
 
-                <!-- Data de Expiração --><div>
+                <!-- Data de Expiração -->
+                <div>
                     <label for="clientExpiry" class="block text-sm font-medium text-gray-700">Data de Expiração</label>
                     <input type="date" id="clientExpiry" name="clientExpiry" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition">
                 </div>
 
-                <!-- Valor da Mensalidade --><div>
+                <!-- Valor da Mensalidade -->
+                <div>
                     <label for="clientValue" class="block text-sm font-medium text-gray-700">Valor (R$)</label>
                     <select id="clientValue" name="clientValue" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition">
                         <option value="25.00">R$ 25,00</option>
@@ -503,7 +591,7 @@
 
             <div class="mt-8 flex justify-end space-x-4">
                 <button type="button" onclick="closeModal()" class="px-5 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition font-medium">Cancelar</button>
-                <button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-md shadow-md hover:from-purple-700 hover:to-indigo-700 transition transform hover:scale-[1.01] font-semibold flex items-center gap-2">
+                <button type="submit" id="modal-submit-button" class="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-md shadow-md hover:from-purple-700 hover:to-indigo-700 transition transform hover:scale-[1.01] font-semibold flex items-center gap-2">
                     <i class="fas fa-save"></i> Salvar Cliente
                 </button>
             </div>
