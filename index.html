@@ -3,603 +3,576 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerenciador de Clientes Coruja Play</title>
-    <!-- Carrega Tailwind CSS para estilização moderna e responsiva -->
+    <title>Coruja Play Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Adiciona Font Awesome para ícones -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Poppins', sans-serif; }
-        .scroll-list { max-height: 450px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #A78BFA #F3F4F6; }
-        .scroll-list::-webkit-scrollbar { width: 8px; }
-        .scroll-list::-webkit-scrollbar-track { background: #F3F4F6; border-radius: 10px; }
-        .scroll-list::-webkit-scrollbar-thumb { background-color: #A78BFA; border-radius: 10px; border: 2px solid #F3F4F6; }
-
-        .whatsapp-button {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 12px;
-            background-color: #25d366; /* Cor do WhatsApp */
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            font-size: 1.05em;
-            font-weight: 600;
-            transition: background-color 0.3s, transform 0.1s;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .card { background-color: white; border-radius: 16px; box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1); }
+        .loading-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(255, 255, 255, 0.9);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 1000;
         }
-        .whatsapp-button:hover {
-            background-color: #128c7e;
-            transform: translateY(-1px);
-        }
-        .whatsapp-button i { margin-right: 8px; }
-
-        .client-item-active:hover {
-            background-color: #EEF2FF; /* indigo-50 */
-        }
-        .client-item-expired {
-            background-color: #FEE2E2; /* red-100 */
-        }
-        .client-item-expired:hover {
-            background-color: #FEE2E2; /* red-100 */
-        }
-        .status-badge-active { background-color: #10B981; color: white; } /* emerald-500 */
-        .status-badge-expired { background-color: #EF4444; color: white; } /* red-500 */
-        
-        /* Loading spinner */
-        .loader {
-            width: 50px;
-            height: 50px;
-            border: 5px solid #E0E7FF; /* indigo-100 */
-            border-bottom-color: #6366F1; /* indigo-500 */
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4f46e5;
             border-radius: 50%;
-            display: inline-block;
-            box-sizing: border-box;
-            animation: rotation 1s linear infinite;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
         }
-
-        @keyframes rotation {
+        @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
-        } 
+        }
+        .client-item { transition: all 0.2s ease-in-out; }
+        .client-item:hover { background-color: #eef2ff; cursor: pointer; }
     </style>
 </head>
-<body class="bg-gradient-to-br from-purple-50 to-indigo-100 min-h-screen p-4 sm:p-8 text-gray-800">
+<body class="p-4 sm:p-8">
+
+    <!-- Loading Overlay (Visible until authentication is ready) -->
+    <div id="loadingSpinner" class="loading-overlay">
+        <div class="spinner"></div>
+        <p class="mt-4 text-lg font-semibold text-gray-700">Carregando Gerenciador Coruja Play...</p>
+    </div>
+
+    <!-- Main Content (Hidden until authentication is ready) -->
+    <div id="mainContent" class="hidden">
+        <div class="max-w-4xl mx-auto p-4 sm:p-8 card">
+            
+            <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 border-b pb-4">
+                <div class="flex items-center">
+                    <i class="fas fa-feather-alt text-indigo-600 text-3xl mr-3"></i>
+                    <h1 class="text-3xl font-bold text-gray-800">Coruja Play Manager</h1>
+                </div>
+                <div id="userIdDisplay" class="text-sm text-gray-500 mt-2 sm:mt-0 px-3 py-1 bg-gray-100 rounded-full">ID do Usuário: Carregando...</div>
+            </header>
+
+            <main class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Coluna de Clientes -->
+                <div class="md:col-span-1">
+                    <h2 class="text-xl font-semibold text-gray-700 mb-4 flex items-center">
+                        <i class="fas fa-users mr-2 text-indigo-500"></i> Meus Clientes
+                    </h2>
+                    
+                    <button id="addClientBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg transition duration-150 mb-4 flex items-center justify-center">
+                        <i class="fas fa-plus mr-2"></i> Adicionar
+                    </button>
+
+                    <div id="clientsList" class="space-y-2 h-96 overflow-y-auto pr-2">
+                        <!-- Clientes serão inseridos aqui -->
+                        <p id="loadingClients" class="text-center text-gray-500 py-4">Carregando clientes...</p>
+                    </div>
+                </div>
+
+                <!-- Coluna de Detalhes e Ações -->
+                <div class="md:col-span-2">
+                    <h2 class="text-xl font-semibold text-gray-700 mb-4 flex items-center">
+                        <i class="fas fa-info-circle mr-2 text-indigo-500"></i> Detalhes & Ações
+                    </h2>
+                    
+                    <div id="detailsPlaceholder" class="p-6 bg-gray-50 rounded-lg text-center text-gray-500">
+                        Selecione um cliente na lista para ver os detalhes e status de expiração.
+                    </div>
+
+                    <div id="clientDetails" class="hidden p-6 card border border-indigo-100">
+                        <h3 id="detailName" class="text-2xl font-bold text-gray-800 mb-2"></h3>
+                        <p class="text-sm text-gray-500 mb-4">ID Cliente: <span id="detailId" class="font-mono text-xs bg-gray-100 p-1 rounded"></span></p>
+
+                        <div class="space-y-3 mb-6">
+                            <div class="flex items-center">
+                                <i class="fas fa-mobile-alt w-5 text-indigo-500"></i>
+                                <span class="ml-3 font-medium">Telefone:</span>
+                                <span id="detailPhone" class="ml-2 text-gray-700"></span>
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-calendar-alt w-5 text-indigo-500"></i>
+                                <span class="ml-3 font-medium">Expiração:</span>
+                                <span id="detailExpiration" class="ml-2 font-bold"></span>
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-signal w-5 text-indigo-500"></i>
+                                <span class="ml-3 font-medium">Status:</span>
+                                <span id="detailStatus" class="ml-2 px-3 py-1 rounded-full text-xs font-semibold"></span>
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-comment-alt w-5 text-indigo-500"></i>
+                                <span class="ml-3 font-medium">Nota:</span>
+                                <span id="detailNote" class="ml-2 text-gray-700 italic"></span>
+                            </div>
+                        </div>
+
+                        <div class="flex space-x-3">
+                            <button id="editClientBtn" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 rounded-lg transition duration-150">
+                                <i class="fas fa-edit mr-2"></i> Editar
+                            </button>
+                            <button id="deleteClientBtn" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 rounded-lg transition duration-150">
+                                <i class="fas fa-trash-alt mr-2"></i> Excluir
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Rodapé: Seus Dados PIX -->
+            <section class="mt-8 pt-4 border-t border-indigo-200">
+                <h3 class="text-lg font-semibold text-indigo-600 mb-3 flex items-center">
+                    <i class="fas fa-money-bill-wave mr-2"></i> Seus Dados PIX
+                </h3>
+                <div class="bg-indigo-50 p-4 rounded-lg flex flex-wrap gap-4 text-sm text-gray-700">
+                    <p>
+                        <span class="font-bold text-indigo-800">Chave:</span> <span id="pixKey">81985117522 (Celular)</span>
+                        <button onclick="copyToClipboard('pixKey')" class="ml-2 text-indigo-500 hover:text-indigo-700" title="Copiar Chave"><i class="fas fa-copy"></i></button>
+                    </p>
+                    <p><span class="font-bold text-indigo-800">Nome:</span> <span id="pixName">Elcid Batista</span></p>
+                    <p><span class="font-bold text-indigo-800">Banco:</span> <span id="pixBank">NuBank</span></p>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <!-- Modal de Adicionar/Editar Cliente -->
+    <div id="clientModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center p-4 z-50">
+        <div class="card w-full max-w-md p-6">
+            <h3 id="modalTitle" class="text-2xl font-bold mb-4 text-gray-800">Adicionar Novo Cliente</h3>
+            <form id="clientForm">
+                <input type="hidden" id="clientId">
+                
+                <div class="mb-4">
+                    <label for="clientName" class="block text-sm font-medium text-gray-700 mb-1">Nome do Cliente</label>
+                    <input type="text" id="clientName" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                
+                <div class="mb-4">
+                    <label for="clientPhone" class="block text-sm font-medium text-gray-700 mb-1">Telefone (DDD + Número)</label>
+                    <input type="tel" id="clientPhone" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="Ex: 81985117522">
+                </div>
+                
+                <div class="mb-4">
+                    <label for="clientExpiration" class="block text-sm font-medium text-gray-700 mb-1">Data de Expiração</label>
+                    <input type="date" id="clientExpiration" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                
+                <div class="mb-6">
+                    <label for="clientNote" class="block text-sm font-medium text-gray-700 mb-1">Nota (Opcional)</label>
+                    <textarea id="clientNote" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                </div>
+
+                <div class="flex space-x-4">
+                    <button type="submit" id="modalSaveBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg transition duration-150">
+                        Salvar
+                    </button>
+                    <button type="button" id="modalCloseBtn" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 rounded-lg transition duration-150">
+                        Cancelar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Mensagem de Alerta/Erro -->
+    <div id="messageBox" class="fixed bottom-4 right-4 p-4 rounded-lg shadow-xl text-white hidden transition-opacity duration-300" style="opacity: 0;"></div>
+
     <!-- Firebase Imports -->
     <script type="module">
+        // Importa as funções necessárias do Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // Adicionando updateDoc
-        import { getFirestore, doc, onSnapshot, collection, query, addDoc, serverTimestamp, deleteDoc, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        
-        setLogLevel('Debug');
+        import { getFirestore, doc, onSnapshot, collection, query, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-iptv-manager';
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        
-        // Inicialização do Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        // =========================================================================
+        // !!! ATENÇÃO: COLOQUE SUAS CHAVES DO NOVO PROJETO AQUI !!!
+        // Cole o objeto 'firebaseConfig' que você copiou do Console do Firebase.
+        // As chaves devem ser as do projeto "Coruja Play - Producao"
+        // =========================================================================
+        const firebaseConfig = {
+            // Se você não copiar as chaves aqui, o aplicativo não se conectará!
+            apiKey: "COLE_SUA_API_KEY_AQUI", // Exemplo: "AIzaSyC..."
+            authDomain: "COLE_SEU_AUTH_DOMAIN_AQUI", // Exemplo: "coruja-play-producao.firebaseapp.com"
+            projectId: "COLE_SEU_PROJECT_ID_AQUI", // Exemplo: "coruja-play-producao"
+            // Você pode deixar o restante como está ou adicionar as outras chaves:
+            storageBucket: "COLE_SEU_STORAGE_BUCKET_AQUI",
+            messagingSenderId: "COLE_SEU_MESSAGING_SENDER_ID_AQUI",
+            appId: "COLE_SEU_APP_ID_AQUI"
+        };
+        // =========================================================================
         
         let currentUserId = null;
-        let clientsRef = null;
-        let isEditing = false; // Flag para saber se estamos editando ou adicionando
-        let currentEditingClientId = null; // ID do cliente sendo editado
+        let clientsData = {}; // Armazena os dados dos clientes, indexados pelo ID do documento
 
-        // Variáveis globais para os elementos DOM, inicializadas no init()
-        let loadingSpinner, clientListContainer, clientDetailsDiv, addClientForm, addClientModal, overlay, addClientButton, mainContent; 
+        // Elementos do DOM: MOVIDO PARA CIMA PARA EVITAR ReferenceError
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const mainContent = document.getElementById('mainContent');
+        const userIdDisplay = document.getElementById('userIdDisplay');
+        const clientsList = document.getElementById('clientsList');
+        const loadingClients = document.getElementById('loadingClients');
+        const addClientBtn = document.getElementById('addClientBtn');
+        const editClientBtn = document.getElementById('editClientBtn');
+        const deleteClientBtn = document.getElementById('deleteClientBtn');
+        const clientDetails = document.getElementById('clientDetails');
+        const detailsPlaceholder = document.getElementById('detailsPlaceholder');
+        const clientModal = document.getElementById('clientModal');
+        const clientForm = document.getElementById('clientForm');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalCloseBtn = document.getElementById('modalCloseBtn');
+        
+        let selectedClientId = null;
+        const COLLECTION_NAME = 'clients';
 
-        const PIX_NUMERO = "81985117522"; 
-        const PIX_NOME = "Elcid Batista";
-        const PIX_BANCO = "NuBank";
 
-        // *** FUNÇÃO DE INICIALIZAÇÃO PRINCIPAL (RODA APÓS O DOM CARREGAR) ***
-        function init() {
-            // 1. Obter referências aos elementos DOM (agora eles existem!)
-            loadingSpinner = document.getElementById('loading-spinner');
-            clientListContainer = document.getElementById('client-list-container');
-            clientDetailsDiv = document.getElementById('client-details');
-            addClientForm = document.getElementById('add-client-form');
-            addClientModal = document.getElementById('add-client-modal');
-            overlay = document.getElementById('modal-overlay');
-            addClientButton = document.getElementById('add-client-button');
-            mainContent = document.getElementById('main-content'); // Novo ID para o conteúdo principal
+        // Variáveis globais (disponíveis no Canvas)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId;
 
-            // 2. Oculta o conteúdo principal até a autenticação
-            mainContent.classList.add('hidden');
-            loadingSpinner.classList.remove('hidden');
-
-            // 3. Anexar o listener do botão
-            if (addClientButton) {
-                addClientButton.addEventListener('click', () => openModal('add'));
-            }
-            
-            // 4. Anexar o listener de submissão do formulário
-            addClientForm.addEventListener('submit', handleAddClientSubmit);
-
-            // 5. Iniciar autenticação Firebase
-            setupFirebase();
+        // Inicializa o Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        // Verifica se as chaves foram coladas antes de tentar o login
+        if (firebaseConfig.apiKey.includes('COLE_SUA_API_KEY_AQUI')) {
+             // Exibe uma mensagem de erro na tela se o usuário não colou as chaves
+             loadingSpinner.classList.add('hidden'); 
+             document.getElementById('mainContent').classList.remove('hidden');
+             document.getElementById('mainContent').innerHTML = `
+                <div class="max-w-4xl mx-auto p-8 card bg-red-50 border-red-300 text-red-800 text-center">
+                    <h1 class="text-xl font-bold mb-4">ERRO DE CONFIGURAÇÃO</h1>
+                    <p class="mb-4">Por favor, cole as chaves de configuração do Firebase (apiKey, authDomain, projectId, etc.) no arquivo
+                    <code class="font-mono bg-red-100 p-1 rounded">iptv_manager_v3.html</code> dentro da variável <code class="font-mono bg-red-100 p-1 rounded">firebaseConfig</code>.
+                    </p>
+                    <p>Consulte as instruções do chat para obter as chaves corretas.</p>
+                </div>
+            `;
+            // Interrompe o restante do script
+            console.error("ERRO GRAVE: As chaves do Firebase não foram configuradas. Por favor, cole as chaves obtidas no Console do Firebase.");
+            throw new Error("API Key não configurada.");
         }
 
-        // Adicionando a função updateClient para expor ao renderClientDetails
-        window.editClient = function(client) {
-            currentEditingClientId = client.id;
-            // Preenche o formulário com os dados do cliente
-            document.getElementById('clientName').value = client.name || '';
-            document.getElementById('clientPhone').value = client.phone.replace(/\D/g, '') || ''; // Remove formatação
-            document.getElementById('clientType').value = client.type || 'Celular';
-            document.getElementById('clientPlan').value = client.plan || 'Basico';
-            document.getElementById('clientApp').value = client.app || 'Coruja Player V.1';
-            document.getElementById('clientMac').value = client.mac || '';
-            document.getElementById('clientKey').value = client.key || '';
-            document.getElementById('clientExpiry').value = client.expiryDate || '';
-            document.getElementById('clientValue').value = client.value ? client.value.toFixed(2) : '25.00';
-            
-            openModal('edit');
-        };
 
-        // Função para lidar com o envio, seja adição ou edição
-        async function handleAddClientSubmit(e) {
-            e.preventDefault();
-            const data = new FormData(addClientForm);
-            
-            const clientData = {
-                name: data.get('clientName'),
-                phone: formatPhoneNumber(data.get('clientPhone')), 
-                type: data.get('clientType'),
-                plan: data.get('clientPlan'),
-                app: data.get('clientApp'),
-                mac: data.get('clientMac'),
-                key: data.get('clientKey'),
-                expiryDate: data.get('clientExpiry'),
-                value: parseFloat(data.get('clientValue')),
-                // createdAt é mantido na adição, atualizado na edição
-                ...(isEditing ? { updatedAt: serverTimestamp() } : { createdAt: serverTimestamp() }),
-            };
+        // =========================================================================
+        // FUNÇÕES GERAIS DE UI
+        // =========================================================================
 
+        function showMessage(message, type = 'success') {
+            const messageBox = document.getElementById('messageBox');
+            messageBox.textContent = message;
+            messageBox.style.backgroundColor = type === 'success' ? '#10b981' : '#ef4444'; // verde ou vermelho
+            
+            messageBox.classList.remove('hidden');
+            setTimeout(() => { messageBox.style.opacity = 1; }, 10); // Fade in
+            
+            setTimeout(() => {
+                messageBox.style.opacity = 0;
+                setTimeout(() => messageBox.classList.add('hidden'), 300); // Fade out
+            }, 3000);
+        }
+
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent.trim();
+            
+            // Cria um campo de texto temporário
+            const tempInput = document.createElement('textarea');
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            
+            // Seleciona e copia
+            tempInput.select();
             try {
-                if (isEditing && currentEditingClientId) {
-                    // Lógica de Edição
-                    const clientDocRef = doc(db, `artifacts/${appId}/users/${currentUserId}/iptv_clients`, currentEditingClientId);
-                    await updateDoc(clientDocRef, clientData);
-                    showCustomMessage("Cliente atualizado com sucesso!", "success");
-                } else {
-                    // Lógica de Adição
-                    await addDoc(clientsRef, clientData);
-                    showCustomMessage("Cliente adicionado com sucesso!", "success");
-                }
-                
-                closeModal();
-                addClientForm.reset();
-            } catch (error) {
-                console.error("Erro ao salvar cliente:", error);
-                showCustomMessage(`Erro ao salvar: ${error.message}`, "error");
+                document.execCommand('copy');
+                showMessage('Copiado para a área de transferência!', 'success');
+            } catch (err) {
+                showMessage('Falha ao copiar. Tente manualmente.', 'error');
             }
+            document.body.removeChild(tempInput);
         }
+        window.copyToClipboard = copyToClipboard; // Torna global para uso em onclick
 
-
-        async function setupFirebase() {
-            try {
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    // Esta linha é crucial para o deploy funcionar se o Canvas não fornecer o token
-                    await signInAnonymously(auth); 
-                }
-                
-                onAuthStateChanged(auth, (user) => {
-                    loadingSpinner.classList.add('hidden');
-                    if (user) {
-                        currentUserId = user.uid;
-                        clientsRef = collection(db, `artifacts/${appId}/users/${currentUserId}/iptv_clients`);
-                        
-                        document.getElementById('user-id-display').textContent = `ID do Usuário: ${currentUserId.substring(0, 8)}...`; // Exibe parte do ID
-                        mainContent.classList.remove('hidden'); // Exibe o conteúdo principal
-                        listenForClients();
-                    } else {
-                        // Se a autenticação falhar, mostra a mensagem de erro e mantém o spinner escondido.
-                        console.error("Usuário não autenticado após tentativa de login.");
-                        document.getElementById('error-message').textContent = `Erro: Não foi possível autenticar o usuário. Verifique sua conexão ou as regras do Firebase.`;
-                        document.getElementById('error-message').classList.remove('hidden');
-                    }
-                });
-            } catch (error) {
-                // Captura erros de inicialização, como config inválida.
-                loadingSpinner.classList.add('hidden');
-                console.error("Erro na autenticação Firebase:", error);
-                document.getElementById('error-message').textContent = `Erro de Inicialização: ${error.message}`;
-                document.getElementById('error-message').classList.remove('hidden');
-            }
-        }
-
-        function listenForClients() {
-            // NOTE: Não usamos orderBy() aqui, conforme instrução. O sort será feito no JS.
-            onSnapshot(clientsRef, (snapshot) => {
-                const clients = [];
-                snapshot.forEach((doc) => {
-                    clients.push({ id: doc.id, ...doc.data() });
-                });
-                
-                // Ordena por nome no lado do cliente
-                clients.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-                
-                renderClientList(clients);
-            }, (error) => {
-                console.error("Erro ao ouvir clientes:", error);
-            });
-        }
-
-        function renderClientList(clients) {
-            clientListContainer.innerHTML = '';
+        // =========================================================================
+        // FUNÇÕES DE DATA E FORMATO
+        // =========================================================================
+        
+        // Retorna a diferença em dias entre a data atual e a data de expiração
+        function getDaysUntilExpiration(expirationDateString) {
+            const oneDay = 24 * 60 * 60 * 1000; // Milissegundos em um dia
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Zera hora para comparação de dia
             
+            const expirationDate = new Date(expirationDateString);
+            expirationDate.setHours(0, 0, 0, 0);
+
+            const diffDays = Math.round((expirationDate.getTime() - today.getTime()) / oneDay);
+            return diffDays;
+        }
+
+        function getExpirationStatus(diffDays) {
+            if (diffDays < 0) return { status: 'Expirado', color: 'bg-red-500' };
+            if (diffDays <= 3) return { status: `Vence em ${diffDays} dias`, color: 'bg-yellow-500' };
+            return { status: `Ativo (${diffDays} dias)`, color: 'bg-green-500' };
+        }
+        
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const [year, month, day] = dateString.split('-');
+            return `${day}/${month}/${year}`;
+        }
+
+        // =========================================================================
+        // FUNÇÕES DE RENDERIZAÇÃO
+        // =========================================================================
+
+        function renderClientsList(clients) {
+            clientsList.innerHTML = '';
+            loadingClients.classList.add('hidden');
+
             if (clients.length === 0) {
-                clientListContainer.innerHTML = `<p class="text-gray-500 p-4 text-center">Nenhum cliente cadastrado ainda. <br> Clique em "Adicionar Cliente" para começar!</p>`;
-                clientDetailsDiv.innerHTML = `<p class="text-gray-500 p-4 bg-white rounded-xl shadow-md text-center">Selecione um cliente na lista para ver os detalhes e status de expiração.</p>`;
+                clientsList.innerHTML = '<p class="text-center text-gray-500 py-4">Nenhum cliente cadastrado.</p>';
                 return;
             }
 
-            clients.forEach(client => {
-                const isExpired = checkExpiration(client.expiryDate);
-                const statusColor = isExpired ? 'bg-red-500' : 'bg-emerald-500';
-                const statusText = isExpired ? 'EXPIRADO' : 'ATIVO';
+            // Ordena os clientes pela data de expiração (os mais próximos de expirar primeiro)
+            clients.sort((a, b) => {
+                const diffA = getDaysUntilExpiration(a.expirationDate);
+                const diffB = getDaysUntilExpiration(b.expirationDate);
+                return diffA - diffB;
+            });
 
-                const clientElement = document.createElement('div');
-                clientElement.className = `flex justify-between items-center p-4 my-2 rounded-lg cursor-pointer transition duration-200 shadow-sm ${isExpired ? 'client-item-expired' : 'client-item-active bg-white hover:shadow-md'}`;
-                clientElement.innerHTML = `
+            clients.forEach(client => {
+                const diffDays = getDaysUntilExpiration(client.expirationDate);
+                const status = getExpirationStatus(diffDays);
+
+                const item = document.createElement('div');
+                item.className = `client-item p-3 border border-gray-200 rounded-lg flex justify-between items-center text-gray-800 ${client.id === selectedClientId ? 'bg-indigo-100 border-indigo-400' : ''}`;
+                item.setAttribute('data-id', client.id);
+                item.innerHTML = `
                     <div>
-                        <span class="font-semibold text-lg text-indigo-800">${client.name}</span>
-                        <p class="text-sm text-gray-500">${client.phone || 'N/A'}</p>
+                        <p class="font-semibold text-base">${client.name}</p>
+                        <p class="text-xs text-gray-500">${formatDate(client.expirationDate)}</p>
                     </div>
-                    <span class="text-xs px-3 py-1 rounded-full font-bold ${statusColor} text-white">${statusText}</span>
+                    <span class="px-2 py-0.5 rounded-full text-xs font-medium ${status.color} text-white">
+                        ${status.status}
+                    </span>
                 `;
-                clientElement.addEventListener('click', () => renderClientDetails(client));
-                clientListContainer.appendChild(clientElement);
+
+                item.addEventListener('click', () => {
+                    selectClient(client.id);
+                });
+
+                clientsList.appendChild(item);
             });
             
-            // Renderiza o primeiro cliente por padrão se houver
-            if (clients.length > 0) {
-                 renderClientDetails(clients[0]);
+            // Tenta re-selecionar o cliente, se houver
+            if (selectedClientId && clientsData[selectedClientId]) {
+                displayClientDetails(clientsData[selectedClientId]);
+            } else {
+                 hideClientDetails();
             }
         }
 
-        function renderClientDetails(client) {
-            const expiryDateStr = formatDateDisplay(client.expiryDate);
-            // Verifica se client.value existe e é um número antes de formatar
-            const valorFormatado = (typeof client.value === 'number') 
-                ? client.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-                : 'R$ 0,00'; 
-                
-            const isExpired = checkExpiration(client.expiryDate);
-            
-            // Mensagem e link do WhatsApp (para o seu número PIX)
-            const mensagemCobranca = 
-                `Olá, ${client.name}! Seu acesso Coruja Play expirou. ` +
-                `O valor para reativação é de ${valorFormatado}. ` +
-                "Segue o PIX para pagamento: 💸\n\n" +
-                `PIX/Chave: ${PIX_NUMERO} (Celular)\n` +
-                `Nome: ${PIX_NOME}\n` +
-                `Banco: ${PIX_BANCO}\n\n` +
-                "Assim que o pagamento for feito, me envie o comprovante. Obrigado!";
-            const mensagemCobrancaCodificada = encodeURIComponent(mensagemCobranca);
-            const linkWhatsAppCobranca = `https://wa.me/55${PIX_NUMERO}?text=${mensagemCobrancaCodificada}`;
-
-            // Link direto para WhatsApp do cliente (sem mensagem automática, apenas abre a conversa)
-            const linkWhatsAppCliente = `https://wa.me/55${client.phone.replace(/\D/g, '')}`; // Remove tudo menos dígitos
-            
-            clientDetailsDiv.innerHTML = `
-                <div class="p-8 bg-white rounded-xl shadow-xl border border-indigo-100">
-                    <h2 class="text-3xl font-bold mb-5 text-indigo-800 flex items-center">
-                        <i class="fas fa-user-circle mr-3 text-indigo-500"></i> ${client.name}
-                    </h2>
-                    
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 mb-6 text-left border-t border-b py-4 border-gray-100">
-                        <p><strong class="text-gray-600"><i class="fas fa-phone mr-2 text-indigo-400"></i> Celular:</strong> <a href="${linkWhatsAppCliente}" target="_blank" class="text-indigo-600 hover:underline">${client.phone || 'N/A'}</a></p>
-                        <p><strong class="text-gray-600"><i class="fas fa-tag mr-2 text-indigo-400"></i> Plano:</strong> ${client.plan}</p>
-                        <p><strong class="text-gray-600"><i class="fas fa-tv mr-2 text-indigo-400"></i> Acesso:</strong> ${client.type}</p>
-                        <p><strong class="text-gray-600"><i class="fas fa-mobile-alt mr-2 text-indigo-400"></i> Aplicativo:</strong> ${client.app}</p>
-                        <p><strong class="text-gray-600"><i class="fas fa-ethernet mr-2 text-indigo-400"></i> MAC:</strong> ${client.mac || 'N/A'}</p>
-                        <p><strong class="text-gray-600"><i class="fas fa-key mr-2 text-indigo-400"></i> Chave Key/Senha:</strong> ${client.key}</p>
-                        <p><strong class="text-gray-600"><i class="fas fa-money-bill-wave mr-2 text-indigo-400"></i> Valor:</strong> ${valorFormatado}</p>
-                    </div>
-
-                    <div class="p-4 rounded-lg font-semibold text-lg flex items-center justify-center gap-2 ${isExpired ? 'bg-red-500 text-white shadow-lg' : 'bg-emerald-500 text-white shadow-lg'} transition duration-300 transform hover:scale-[1.01]">
-                        <i class="fas ${isExpired ? 'fa-calendar-times' : 'fa-calendar-check'}"></i> Data de Expiração: ${expiryDateStr} 
-                        (${isExpired ? 'EXPIRADO!' : 'ATIVO'})
-                    </div>
-
-                    ${isExpired ? `
-                        <div class="mt-6 p-4 bg-red-50 border-l-4 border-red-400 text-red-800 rounded-md shadow-inner flex items-center gap-3">
-                            <i class="fas fa-exclamation-triangle text-red-500 text-xl"></i>
-                            <div>
-                                <p class="font-bold text-lg">ALERTA: ACESSO EXPIRADO!</p>
-                                <p>O cliente precisa pagar <span class="text-red-700 font-extrabold">${valorFormatado}</span> para reativar.</p>
-                            </div>
-                        </div>
-                        <a href="${linkWhatsAppCobranca}" target="_blank" class="whatsapp-button mt-4">
-                            <i class="fab fa-whatsapp"></i> Enviar Cobrança Automática
-                        </a>
-                    ` : `
-                        <div class="mt-6 p-4 bg-green-50 border-l-4 border-emerald-400 text-emerald-800 rounded-md shadow-inner flex items-center gap-3">
-                            <i class="fas fa-check-circle text-emerald-500 text-xl"></i>
-                            <div>
-                                <p class="font-bold text-lg">Serviço ATIVO e em dia!</p>
-                                <p>Nenhuma ação de cobrança é necessária no momento.</p>
-                            </div>
-                        </div>
-                        <a href="${linkWhatsAppCliente}" target="_blank" class="whatsapp-button bg-blue-500 hover:bg-blue-600 mt-4">
-                            <i class="fab fa-whatsapp"></i> Abrir WhatsApp do Cliente
-                        </a>
-                    `}
-                    
-                    <div class="flex gap-4 mt-6">
-                        <!-- Botão de Edição -->
-                        <button onclick="window.editClient(${JSON.stringify(client).replace(/"/g, '&quot;')})" class="w-full py-3 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition font-semibold text-base shadow-md flex items-center justify-center">
-                            <i class="fas fa-edit mr-2"></i> Editar Cliente
-                        </button>
-                        <!-- Botão de Exclusão -->
-                        <button onclick="window.deleteClient('${client.id}')" class="w-full py-3 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition font-semibold text-base shadow-sm">
-                            <i class="fas fa-trash-alt mr-2"></i> Excluir Cliente
-                        </button>
-                    </div>
-                </div>
-            `;
+        function selectClient(id) {
+            selectedClientId = id;
+            // Atualiza o estado da lista e exibe detalhes
+            renderClientsList(Object.values(clientsData));
         }
 
-        function checkExpiration(expiryDate) {
-            if (!expiryDate) return true;
-            const parts = expiryDate.split('-');
-            // Usa o fuso horário local para evitar problemas de data
-            const expiry = new Date(parts[0], parts[1] - 1, parts[2]);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            return today > expiry; // Mudança para > para que a data de expiração ainda seja ATIVO
-        }
+        function displayClientDetails(client) {
+            const diffDays = getDaysUntilExpiration(client.expirationDate);
+            const status = getExpirationStatus(diffDays);
 
-        function formatDateDisplay(dateString) {
-            const parts = dateString.split('-');
-            if (parts.length === 3) {
-                return `${parts[2]}/${parts[1]}/${parts[0]}`;
-            }
-            return 'Data Inválida';
+            document.getElementById('detailName').textContent = client.name;
+            document.getElementById('detailId').textContent = client.id;
+            document.getElementById('detailPhone').textContent = client.phone;
+            document.getElementById('detailExpiration').textContent = formatDate(client.expirationDate);
+            document.getElementById('detailStatus').textContent = status.status;
+            document.getElementById('detailStatus').className = `ml-2 px-3 py-1 rounded-full text-xs font-semibold text-white ${status.color}`;
+            document.getElementById('detailNote').textContent = client.note || 'Nenhuma nota.';
+            
+            detailsPlaceholder.classList.add('hidden');
+            clientDetails.classList.remove('hidden');
         }
         
-        function formatPhoneNumber(rawNumber) {
-            const cleaned = ('' + rawNumber).replace(/\D/g, '');
-            const match = cleaned.match(/^(\d{2})(\d{5})(\d{4})$/);
-            if (match) {
-                return `(${match[1]}) ${match[2]}-${match[3]}`;
+        function hideClientDetails() {
+            selectedClientId = null;
+            clientDetails.classList.add('hidden');
+            detailsPlaceholder.classList.remove('hidden');
+        }
+
+        // =========================================================================
+        // FUNÇÕES DE OPERAÇÃO DO FIREBASE (CRUD)
+        // =========================================================================
+
+        /**
+         * Inicializa o listener de tempo real para a coleção de clientes.
+         * Esta função só é chamada DEPOIS que a autenticação está pronta.
+         */
+        function listenForClients() {
+            // Caminho: /artifacts/{appId}/users/{currentUserId}/clients
+            const clientCollectionRef = collection(db, 'artifacts', appId, 'users', currentUserId, COLLECTION_NAME);
+            
+            // onSnapshot escuta em tempo real as mudanças
+            onSnapshot(clientCollectionRef, (snapshot) => {
+                const newClientsData = {};
+                snapshot.forEach((doc) => {
+                    newClientsData[doc.id] = { id: doc.id, ...doc.data() };
+                });
+                
+                clientsData = newClientsData;
+                
+                // Renderiza a lista de clientes atualizada
+                renderClientsList(Object.values(clientsData));
+
+                if (loadingClients) {
+                    loadingClients.classList.add('hidden');
+                }
+            }, (error) => {
+                console.error("Erro ao escutar clientes:", error);
+                showMessage(`Erro ao carregar dados: ${error.message}`, 'error');
+                loadingClients.textContent = 'Erro ao carregar (verifique o Console e as Regras do Firebase).';
+            });
+        }
+        
+        /**
+         * Adiciona ou atualiza um cliente no Firestore.
+         */
+        async function saveClient(clientData) {
+            try {
+                const dataToSave = {
+                    name: clientData.name,
+                    phone: clientData.phone,
+                    expirationDate: clientData.expirationDate,
+                    note: clientData.note,
+                    createdAt: clientData.createdAt || new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+                
+                const clientCollectionRef = collection(db, 'artifacts', appId, 'users', currentUserId, COLLECTION_NAME);
+
+                if (clientData.id) {
+                    // Atualizar cliente existente
+                    const docRef = doc(clientCollectionRef, clientData.id);
+                    await updateDoc(docRef, dataToSave);
+                    showMessage(`Cliente "${clientData.name}" atualizado com sucesso!`, 'success');
+                } else {
+                    // Adicionar novo cliente
+                    await addDoc(clientCollectionRef, dataToSave);
+                    showMessage(`Cliente "${clientData.name}" adicionado com sucesso!`, 'success');
+                }
+                
+                clientModal.classList.add('hidden');
+            } catch (error) {
+                console.error("Erro ao salvar cliente:", error);
+                showMessage(`Erro ao salvar: ${error.message}`, 'error');
             }
-            return rawNumber;
         }
-
-        function showCustomMessage(message, type = 'info') {
-            const msgDiv = document.getElementById('custom-message');
-            msgDiv.textContent = message;
-            msgDiv.classList.remove('hidden', 'bg-green-100', 'bg-red-100', 'text-green-800', 'text-red-800');
-            msgDiv.classList.add('flex', 'items-center', 'gap-2');
-            
-            let iconClass = '';
-            if (type === 'success') {
-                msgDiv.classList.add('bg-green-100', 'text-green-800');
-                iconClass = 'fas fa-check-circle';
-            } else if (type === 'error') {
-                msgDiv.classList.add('bg-red-100', 'text-red-800');
-                iconClass = 'fas fa-times-circle';
-            } else {
-                msgDiv.classList.add('bg-blue-100', 'text-blue-800');
-                iconClass = 'fas fa-info-circle';
+        
+        /**
+         * Deleta um cliente do Firestore.
+         */
+        async function deleteSelectedClient() {
+            if (!selectedClientId || !confirm(`Tem certeza que deseja excluir o cliente "${clientsData[selectedClientId].name}"?`)) {
+                return;
             }
-            
-            msgDiv.innerHTML = `<i class="${iconClass}"></i><span>${message}</span>`;
-            
-            setTimeout(() => { msgDiv.classList.add('hidden'); }, 5000);
-        }
-
-        // FUNÇÕES DE MODAL
-        function openModal(mode = 'add') {
-            const modalTitle = document.getElementById('modal-title');
-            const submitButton = document.getElementById('modal-submit-button');
-
-            isEditing = (mode === 'edit');
-            
-            if (isEditing) {
-                modalTitle.innerHTML = '<i class="fas fa-edit text-purple-500"></i> Editar Cliente';
-                submitButton.innerHTML = '<i class="fas fa-save"></i> Salvar Alterações';
-            } else {
-                modalTitle.innerHTML = '<i class="fas fa-user-plus text-purple-500"></i> Adicionar Novo Cliente';
-                submitButton.innerHTML = '<i class="fas fa-save"></i> Salvar Cliente';
-                currentEditingClientId = null; // Limpa o ID em modo de adição
-                addClientForm.reset();
-            }
-
-            addClientModal.classList.remove('hidden');
-            overlay.classList.remove('hidden');
-            
-            addClientModal.offsetHeight; // Força reflow
-
-            addClientModal.classList.remove('scale-95', 'opacity-0');
-            addClientModal.classList.add('scale-100', 'opacity-100');
-        }
-
-        function closeModal() {
-            addClientModal.classList.add('scale-95', 'opacity-0');
-            addClientModal.classList.remove('scale-100', 'opacity-100');
-            
-            setTimeout(() => {
-                addClientModal.classList.add('hidden');
-                overlay.classList.add('hidden');
-            }, 300); 
-        }
-
-        window.deleteClient = async function(clientId) {
-            // Nota: O confirm() é usado apenas para simular a intenção, pois o alerta customizado é complexo para o escopo
-            if (!confirm(`Tem certeza que deseja excluir este cliente? Esta ação é irreversível!`)) return;
 
             try {
-                const clientDocRef = doc(db, `artifacts/${appId}/users/${currentUserId}/iptv_clients`, clientId);
-                await deleteDoc(clientDocRef);
-                showCustomMessage("Cliente excluído com sucesso!", "success");
+                const clientCollectionRef = collection(db, 'artifacts', appId, 'users', currentUserId, COLLECTION_NAME);
+                const docRef = doc(clientCollectionRef, selectedClientId);
+                await deleteDoc(docRef);
+                
+                showMessage(`Cliente excluído com sucesso!`, 'success');
+                hideClientDetails();
+                selectedClientId = null; // Limpa a seleção
+                // O onSnapshot cuidará de remover da lista automaticamente
             } catch (error) {
-                console.error("Erro ao excluir cliente:", error);
-                showCustomMessage(`Erro ao excluir: ${error.message}`, "error");
+                console.error("Erro ao deletar cliente:", error);
+                showMessage(`Erro ao deletar: ${error.message}`, 'error');
             }
         }
+
+
+        // =========================================================================
+        // EVENT LISTENERS E INICIALIZAÇÃO
+        // =========================================================================
         
-        // Expondo para o HTML
-        window.closeModal = closeModal;
+        // 1. Tratamento de Formulário
+        clientForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const clientData = {
+                id: document.getElementById('clientId').value, // Será vazio se for novo
+                name: document.getElementById('clientName').value,
+                phone: document.getElementById('clientPhone').value,
+                expirationDate: document.getElementById('clientExpiration').value,
+                note: document.getElementById('clientNote').value
+            };
+            
+            saveClient(clientData);
+        });
         
-        // *** CORREÇÃO FINAL: INICIALIZAÇÃO APÓS O DOM CARREGAR ***
-        window.addEventListener('DOMContentLoaded', init);
+        // 2. Botões de Ação
+        addClientBtn.addEventListener('click', () => {
+            modalTitle.textContent = 'Adicionar Novo Cliente';
+            clientForm.reset();
+            document.getElementById('clientId').value = ''; // Garante que o ID está vazio para 'adicionar'
+            clientModal.classList.remove('hidden');
+        });
+        
+        modalCloseBtn.addEventListener('click', () => {
+            clientModal.classList.add('hidden');
+        });
+
+        editClientBtn.addEventListener('click', () => {
+            if (!selectedClientId || !clientsData[selectedClientId]) return;
+            
+            const client = clientsData[selectedClientId];
+            
+            modalTitle.textContent = 'Editar Cliente';
+            document.getElementById('clientId').value = client.id;
+            document.getElementById('clientName').value = client.name;
+            document.getElementById('clientPhone').value = client.phone;
+            document.getElementById('clientExpiration').value = client.expirationDate;
+            document.getElementById('clientNote').value = client.note;
+            
+            clientModal.classList.remove('hidden');
+        });
+        
+        deleteClientBtn.addEventListener('click', deleteSelectedClient);
+
+
+        // 3. Autenticação e Sincronia de Estado (O PONTO MAIS IMPORTANTE)
+        onAuthStateChanged(auth, async (user) => {
+            // Assim que o Firebase responder sobre a autenticação, removemos o spinner.
+            loadingSpinner.classList.add('hidden'); 
+
+            if (user) {
+                // Usuário autenticado (anonimamente ou com token)
+                currentUserId = user.uid;
+                userIdDisplay.textContent = `ID do Usuário: ${currentUserId}`;
+                
+                mainContent.classList.remove('hidden'); 
+                
+                // *** AGORA, e SOMENTE AGORA, buscamos os dados do Firestore ***
+                listenForClients();
+                
+                // Certifica-se de que o elemento de carregamento de clientes não está mais visível
+                loadingClients.classList.add('hidden'); 
+            } else {
+                // Se não houver token inicial, tenta o login anônimo
+                try {
+                    await signInAnonymously(auth);
+                    // O onAuthStateChanged será chamado novamente com o 'user' logado.
+                } catch (error) {
+                    // Exibe erro amigável se a API Key for válida, mas o login falhar por outro motivo
+                    const errorMessage = `ERRO: Não foi possível autenticar. Detalhes: ${error.code || error.message}`;
+                    console.error("Erro no login anônimo:", error);
+                    userIdDisplay.textContent = 'ERRO: Não foi possível autenticar.';
+                    mainContent.innerHTML = `<div class="text-center p-8 text-red-600 bg-red-100 rounded-lg">${errorMessage}</div>`;
+                }
+            }
+        });
     </script>
-
-    <div id="error-message" class="text-red-600 bg-red-100 p-3 rounded-lg hidden"></div>
-    <div id="loading-spinner" class="text-center p-8">
-        <div class="loader mx-auto"></div>
-        <p class="mt-4 text-indigo-700 font-medium">Carregando Gerenciador Coruja Play...</p>
-    </div>
-    <div id="custom-message" class="hidden fixed top-0 left-1/2 transform -translate-x-1/2 mt-6 p-4 rounded-lg shadow-xl z-50 text-base font-medium"></div>
-    
-    <!-- CONTEÚDO PRINCIPAL (Agora tem um ID e é escondido até a autenticação) -->
-    <div id="main-content" class="max-w-6xl mx-auto bg-white p-8 rounded-2xl shadow-2xl border border-indigo-200">
-        <header class="flex flex-col sm:flex-row justify-between items-center mb-8 border-b border-indigo-100 pb-6">
-            <h1 class="text-4xl font-extrabold text-indigo-800 flex items-center gap-3 mb-4 sm:mb-0">
-                <i class="fas fa-feather-alt text-purple-500"></i> Coruja Play Manager
-            </h1>
-            <div class="text-sm text-gray-500 bg-indigo-50 px-4 py-2 rounded-full shadow-inner">
-                <i class="fas fa-id-badge mr-2 text-indigo-400"></i> <span id="user-id-display">ID do Usuário: Carregando...</span>
-            </div>
-        </header>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Coluna da Lista de Clientes -->
-            <div class="lg:col-span-1">
-                <div class="flex justify-between items-center mb-5">
-                    <h2 class="text-2xl font-bold text-gray-700 flex items-center gap-2"><i class="fas fa-users text-indigo-500"></i> Meus Clientes</h2>
-                    <!-- Botão Adicionar: Agora com ID para vincular o evento via JavaScript -->
-                    <button id="add-client-button" class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-5 py-2.5 rounded-full shadow-lg hover:from-purple-700 hover:to-indigo-700 transition transform hover:scale-105 flex items-center gap-2 font-semibold">
-                        <i class="fas fa-plus-circle"></i> Adicionar
-                    </button>
-                </div>
-                <div id="client-list-container" class="scroll-list bg-gray-50 p-3 rounded-xl border border-gray-200 shadow-inner">
-                    <!-- Clientes serão renderizados aqui -->
-                    <p class="text-center text-gray-400 p-4">Carregando clientes...</p>
-                </div>
-            </div>
-
-            <!-- Coluna de Detalhes do Cliente / Cobrança -->
-            <div class="lg:col-span-2">
-                <h2 class="text-2xl font-bold text-gray-700 mb-5 flex items-center gap-2"><i class="fas fa-info-circle text-indigo-500"></i> Detalhes & Ações</h2>
-                <div id="client-details">
-                    <p class="text-gray-500 p-6 bg-white rounded-xl shadow-md text-center border border-gray-100">Selecione um cliente na lista para ver os detalhes e status de expiração.</p>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Detalhes PIX de Referência -->
-        <div class="mt-10 p-5 bg-indigo-50 rounded-xl border border-indigo-200 shadow-md">
-            <h3 class="font-bold text-indigo-700 mb-3 text-xl flex items-center gap-2"><i class="fas fa-money-check-alt text-purple-500"></i> Seus Dados PIX</h3>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-gray-700">
-                <p><strong>Chave:</strong> 81985117522 (Celular)</p>
-                <p><strong>Nome:</strong> Elcid Batista</p>
-                <p><strong>Banco:</strong> NuBank</p>
-            </div>
-        </div>
-    </div>
-    
-    <!-- MODAL DE ADICIONAR/EDITAR CLIENTE -->
-    <div id="modal-overlay" class="hidden fixed inset-0 bg-black bg-opacity-60 z-40 flex items-center justify-center p-4" onclick="closeModal()"></div>
-    <div id="add-client-modal" class="hidden fixed bg-white p-8 rounded-xl shadow-2xl z-50 w-full max-w-lg scale-95 opacity-0 transition-all duration-300 ease-out transform-gpu">
-        <h2 id="modal-title" class="text-3xl font-bold mb-6 text-indigo-700 flex items-center gap-2">
-            <i class="fas fa-user-plus text-purple-500"></i> Adicionar Novo Cliente
-        </h2>
-        <form id="add-client-form">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5">
-                
-                <!-- Nome -->
-                <div class="sm:col-span-2">
-                    <label for="clientName" class="block text-sm font-medium text-gray-700">Nome do Cliente</label>
-                    <input type="text" id="clientName" name="clientName" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition">
-                </div>
-                
-                <!-- Celular do Cliente -->
-                <div class="sm:col-span-2">
-                    <label for="clientPhone" class="block text-sm font-medium text-gray-700">Celular do Cliente (apenas dígitos)</label>
-                    <input type="number" id="clientPhone" name="clientPhone" placeholder="Ex: 81985117522" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition">
-                </div>
-
-                <!-- Tipo de Acesso -->
-                <div>
-                    <label for="clientType" class="block text-sm font-medium text-gray-700">Tipo de Acesso</label>
-                    <select id="clientType" name="clientType" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition">
-                        <option value="Celular">Celular</option>
-                        <option value="TV Box">TV Box</option>
-                        <option value="TV Smart">TV Smart</option>
-                        <option value="PC">PC</option>
-                    </select>
-                </div>
-
-                <!-- Plano -->
-                <div>
-                    <label for="clientPlan" class="block text-sm font-medium text-gray-700">Plano</label>
-                    <select id="clientPlan" name="clientPlan" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition">
-                        <option value="Basico">Básico</option>
-                        <option value="Completo">Completo</option>
-                        <option value="Premium">Premium</option>
-                    </select>
-                </div>
-                
-                <!-- Aplicativo -->
-                <div class="sm:col-span-2">
-                    <label for="clientApp" class="block text-sm font-medium text-gray-700">Aplicativo</label>
-                    <input type="text" id="clientApp" name="clientApp" value="Coruja Player V.1" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition">
-                </div>
-                
-                <!-- MAC -->
-                <div>
-                    <label for="clientMac" class="block text-sm font-medium text-gray-700">MAC (Opcional)</label>
-                    <input type="text" id="clientMac" name="clientMac" placeholder="Ex: 00:1A:2B:..." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition">
-                </div>
-                
-                <!-- Chave Key/Senha -->
-                <div>
-                    <label for="clientKey" class="block text-sm font-medium text-gray-700">Chave Key/Senha</label>
-                    <input type="text" id="clientKey" name="clientKey" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition">
-                </div>
-
-                <!-- Data de Expiração -->
-                <div>
-                    <label for="clientExpiry" class="block text-sm font-medium text-gray-700">Data de Expiração</label>
-                    <input type="date" id="clientExpiry" name="clientExpiry" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition">
-                </div>
-
-                <!-- Valor da Mensalidade -->
-                <div>
-                    <label for="clientValue" class="block text-sm font-medium text-gray-700">Valor (R$)</label>
-                    <select id="clientValue" name="clientValue" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2.5 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition">
-                        <option value="25.00">R$ 25,00</option>
-                        <option value="35.00">R$ 35,00</option>
-                        <option value="40.00">R$ 40,00</option>
-                        <option value="50.00">R$ 50,00</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="mt-8 flex justify-end space-x-4">
-                <button type="button" onclick="closeModal()" class="px-5 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition font-medium">Cancelar</button>
-                <button type="submit" id="modal-submit-button" class="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-md shadow-md hover:from-purple-700 hover:to-indigo-700 transition transform hover:scale-[1.01] font-semibold flex items-center gap-2">
-                    <i class="fas fa-save"></i> Salvar Cliente
-                </button>
-            </div>
-        </form>
-        <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition">
-            <i class="fas fa-times text-xl"></i>
-        </button>
-    </div>
-
 </body>
 </html>
