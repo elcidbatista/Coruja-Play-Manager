@@ -1,578 +1,245 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Coruja Play Manager</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
-        .card { background-color: white; border-radius: 16px; box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1); }
-        .loading-overlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background-color: rgba(255, 255, 255, 0.9);
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            z-index: 1000;
-        }
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #4f46e5;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .client-item { transition: all 0.2s ease-in-out; }
-        .client-item:hover { background-color: #eef2ff; cursor: pointer; }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Coruja Play — Painel IPTV</title>
+  <style>
+    :root{font-family:Inter,system-ui,Arial,sans-serif}
+    body{margin:0;padding:20px;background:#0f172a;color:#e6eef8}
+    .card{background:#0b1220;border-radius:10px;padding:18px;box-shadow:0 6px 18px rgba(2,6,23,.6)}
+    h1{margin:0 0 10px;font-size:20px}
+    label{display:block;margin-top:10px;font-size:13px;color:#bcd0ea}
+    input,select{width:100%;padding:8px;margin-top:6px;border-radius:6px;border:1px solid #16324a;background:#071224;color:#e6eef8}
+    button{margin-top:12px;padding:10px 12px;border-radius:8px;border:0;background:#1f8cff;color:white;cursor:pointer}
+    table{width:100%;border-collapse:collapse;margin-top:18px}
+    th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,.04);text-align:left;font-size:14px}
+    .tag{display:inline-block;padding:4px 8px;border-radius:999px;background:#142d3f;color:#bfe0ff;font-size:12px}
+    .expired{background:#4d1f1f;color:#ffd6d6}
+    .soon{background:#4a3b1f;color:#fff6d6}
+    .actions button{margin-right:6px}
+    .small{font-size:12px;color:#9fb6d4}
+    .topbar{display:flex;gap:10px;align-items:center;justify-content:space-between}
+    .search{width:200px}
+    .note{margin-top:12px;font-size:13px;color:#9fb6d4}
+    .app-icon{font-size:18px;margin-right:5px}
+  </style>
 </head>
-<body class="p-4 sm:p-8">
-
-    <!-- Loading Overlay (Visible until authentication is ready) -->
-    <div id="loadingSpinner" class="loading-overlay">
-        <div class="spinner"></div>
-        <p class="mt-4 text-lg font-semibold text-gray-700">Carregando Gerenciador Coruja Play...</p>
+<body>
+  <div class="card">
+    <div class="topbar">
+      <div>
+        <h1>Coruja Play — Painel de Clientes IPTV</h1>
+        <div class="small">Adicione clientes, veja vencimentos e envie mensagem no WhatsApp com o PIX.</div>
+      </div>
+      <div>
+        <input id="search" class="search" placeholder="Pesquisar cliente..." />
+      </div>
     </div>
 
-    <!-- Main Content (Hidden until authentication is ready) -->
-    <div id="mainContent" class="hidden">
-        <div class="max-w-4xl mx-auto p-4 sm:p-8 card">
-            
-            <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 border-b pb-4">
-                <div class="flex items-center">
-                    <i class="fas fa-feather-alt text-indigo-600 text-3xl mr-3"></i>
-                    <h1 class="text-3xl font-bold text-gray-800">Coruja Play Manager</h1>
-                </div>
-                <div id="userIdDisplay" class="text-sm text-gray-500 mt-2 sm:mt-0 px-3 py-1 bg-gray-100 rounded-full">ID do Usuário: Carregando...</div>
-            </header>
+    <form id="form">
+      <label>Cliente</label>
+      <input id="cliente" required placeholder="Nome do cliente" />
 
-            <main class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- Coluna de Clientes -->
-                <div class="md:col-span-1">
-                    <h2 class="text-xl font-semibold text-gray-700 mb-4 flex items-center">
-                        <i class="fas fa-users mr-2 text-indigo-500"></i> Meus Clientes
-                    </h2>
-                    
-                    <button id="addClientBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg transition duration-150 mb-4 flex items-center justify-center">
-                        <i class="fas fa-plus mr-2"></i> Adicionar
-                    </button>
+      <label>Aplicativo</label>
+      <select id="app">
+        <option value="Coruja Play">🦉 Coruja Play</option>
+        <option value="IPTV Smarters">📺 IPTV Smarters</option>
+        <option value="DuplexPlay">🎬 DuplexPlay</option>
+        <option value="Smart STB">💡 Smart STB</option>
+        <option value="XCIPTV">⚙️ XCIPTV</option>
+        <option value="Flix IPTV">🎥 Flix IPTV</option>
+        <option value="SET IPTV">📡 SET IPTV</option>
+        <option value="SmartOne IPTV">💎 SmartOne IPTV</option>
+        <option value="Net IPTV">🌐 Net IPTV</option>
+        <option value="IBO Player">🧩 IBO Player</option>
+        <option value="Mega Player">🔊 Mega Player</option>
+        <option value="Bay IPTV">🦈 Bay IPTV</option>
+        <option value="Smart IPTV (SIPTV)">🔴 Smart IPTV (SIPTV)</option>
+        <option value="Outro">🔘 Outro</option>
+      </select>
 
-                    <div id="clientsList" class="space-y-2 h-96 overflow-y-auto pr-2">
-                        <!-- Clientes serão inseridos aqui -->
-                        <p id="loadingClients" class="text-center text-gray-500 py-4">Carregando clientes...</p>
-                    </div>
-                </div>
+      <label>Preço</label>
+      <select id="preco">
+        <option value="30">R$ 30,00</option>
+        <option value="50">R$ 50,00</option>
+        <option value="60">R$ 60,00</option>
+      </select>
 
-                <!-- Coluna de Detalhes e Ações -->
-                <div class="md:col-span-2">
-                    <h2 class="text-xl font-semibold text-gray-700 mb-4 flex items-center">
-                        <i class="fas fa-info-circle mr-2 text-indigo-500"></i> Detalhes & Ações
-                    </h2>
-                    
-                    <div id="detailsPlaceholder" class="p-6 bg-gray-50 rounded-lg text-center text-gray-500">
-                        Selecione um cliente na lista para ver os detalhes e status de expiração.
-                    </div>
+      <label>MAC (opcional)</label>
+      <input id="mac" placeholder="AA:BB:CC:11:22:33" />
 
-                    <div id="clientDetails" class="hidden p-6 card border border-indigo-100">
-                        <h3 id="detailName" class="text-2xl font-bold text-gray-800 mb-2"></h3>
-                        <p class="text-sm text-gray-500 mb-4">ID Cliente: <span id="detailId" class="font-mono text-xs bg-gray-100 p-1 rounded"></span></p>
+      <label>Chave (key) (opcional)</label>
+      <input id="chave" placeholder="Chave do cliente / key" />
 
-                        <div class="space-y-3 mb-6">
-                            <div class="flex items-center">
-                                <i class="fas fa-mobile-alt w-5 text-indigo-500"></i>
-                                <span class="ml-3 font-medium">Telefone:</span>
-                                <span id="detailPhone" class="ml-2 text-gray-700"></span>
-                            </div>
-                            <div class="flex items-center">
-                                <i class="fas fa-calendar-alt w-5 text-indigo-500"></i>
-                                <span class="ml-3 font-medium">Expiração:</span>
-                                <span id="detailExpiration" class="ml-2 font-bold"></span>
-                            </div>
-                            <div class="flex items-center">
-                                <i class="fas fa-signal w-5 text-indigo-500"></i>
-                                <span class="ml-3 font-medium">Status:</span>
-                                <span id="detailStatus" class="ml-2 px-3 py-1 rounded-full text-xs font-semibold"></span>
-                            </div>
-                            <div class="flex items-center">
-                                <i class="fas fa-comment-alt w-5 text-indigo-500"></i>
-                                <span class="ml-3 font-medium">Nota:</span>
-                                <span id="detailNote" class="ml-2 text-gray-700 italic"></span>
-                            </div>
-                        </div>
+      <label>Telefone (incluir código do país sem '+' — ex: 5511999998888)</label>
+      <input id="telefone" placeholder="5511999998888" />
 
-                        <div class="flex space-x-3">
-                            <button id="editClientBtn" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 rounded-lg transition duration-150">
-                                <i class="fas fa-edit mr-2"></i> Editar
-                            </button>
-                            <button id="deleteClientBtn" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 rounded-lg transition duration-150">
-                                <i class="fas fa-trash-alt mr-2"></i> Excluir
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </main>
+      <label>Data de expiração</label>
+      <input id="vencimento" type="date" required />
 
-            <!-- Rodapé: Seus Dados PIX -->
-            <section class="mt-8 pt-4 border-t border-indigo-200">
-                <h3 class="text-lg font-semibold text-indigo-600 mb-3 flex items-center">
-                    <i class="fas fa-money-bill-wave mr-2"></i> Seus Dados PIX
-                </h3>
-                <div class="bg-indigo-50 p-4 rounded-lg flex flex-wrap gap-4 text-sm text-gray-700">
-                    <p>
-                        <span class="font-bold text-indigo-800">Chave:</span> <span id="pixKey">81985117522 (Celular)</span>
-                        <button onclick="copyToClipboard('pixKey')" class="ml-2 text-indigo-500 hover:text-indigo-700" title="Copiar Chave"><i class="fas fa-copy"></i></button>
-                    </p>
-                    <p><span class="font-bold text-indigo-800">Nome:</span> <span id="pixName">Elcid Batista</span></p>
-                    <p><span class="font-bold text-indigo-800">Banco:</span> <span id="pixBank">NuBank</span></p>
-                </div>
-            </section>
+      <button type="submit">Adicionar / Atualizar cliente</button>
+    </form>
 
-        </div>
-    </div>
+    <div class="note">PIX: <strong>Elcid Batista</strong> — Banco: <strong>Nubank</strong> — Chave PIX: <strong id="pix-key">81985117522</strong></div>
 
-    <!-- Modal de Adicionar/Editar Cliente -->
-    <div id="clientModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center p-4 z-50">
-        <div class="card w-full max-w-md p-6">
-            <h3 id="modalTitle" class="text-2xl font-bold mb-4 text-gray-800">Adicionar Novo Cliente</h3>
-            <form id="clientForm">
-                <input type="hidden" id="clientId">
-                
-                <div class="mb-4">
-                    <label for="clientName" class="block text-sm font-medium text-gray-700 mb-1">Nome do Cliente</label>
-                    <input type="text" id="clientName" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-                
-                <div class="mb-4">
-                    <label for="clientPhone" class="block text-sm font-medium text-gray-700 mb-1">Telefone (DDD + Número)</label>
-                    <input type="tel" id="clientPhone" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="Ex: 81985117522">
-                </div>
-                
-                <div class="mb-4">
-                    <label for="clientExpiration" class="block text-sm font-medium text-gray-700 mb-1">Data de Expiração</label>
-                    <input type="date" id="clientExpiration" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-                
-                <div class="mb-6">
-                    <label for="clientNote" class="block text-sm font-medium text-gray-700 mb-1">Nota (Opcional)</label>
-                    <textarea id="clientNote" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"></textarea>
-                </div>
+    <table id="tabela">
+      <thead>
+        <tr><th>Cliente</th><th>App</th><th>Preço</th><th>MAC</th><th>Chave</th><th>Telefone</th><th>Vencimento</th><th>Status</th><th>Ações</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
 
-                <div class="flex space-x-4">
-                    <button type="submit" id="modalSaveBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg transition duration-150">
-                        Salvar
-                    </button>
-                    <button type="button" id="modalCloseBtn" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 rounded-lg transition duration-150">
-                        Cancelar
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+  </div>
 
-    <!-- Mensagem de Alerta/Erro -->
-    <div id="messageBox" class="fixed bottom-4 right-4 p-4 rounded-lg shadow-xl text-white hidden transition-opacity duration-300" style="opacity: 0;"></div>
+  <script>
+    const PIX_NAME = 'Elcid Batista';
+    const PIX_BANK = 'Nubank';
+    const PIX_KEY = '81985117522';
 
-    <!-- Firebase Imports -->
-    <script type="module">
-        // Importa as funções necessárias do Firebase
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, collection, query, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    const form = document.getElementById('form');
+    const clienteInput = document.getElementById('cliente');
+    const appInput = document.getElementById('app');
+    const precoInput = document.getElementById('preco');
+    const macInput = document.getElementById('mac');
+    const chaveInput = document.getElementById('chave');
+    const telInput = document.getElementById('telefone');
+    const vencInput = document.getElementById('vencimento');
+    const tabelaBody = document.querySelector('#tabela tbody');
+    const search = document.getElementById('search');
 
-        // =========================================================================
-        // !!! ATENÇÃO: COLOQUE SUAS CHAVES DO NOVO PROJETO AQUI !!!
-        // Cole o objeto 'firebaseConfig' que você copiou do Console do Firebase.
-        // As chaves devem ser as do projeto "Coruja Play - Producao"
-        // =========================================================================
-        const firebaseConfig = {
-            // Se você não copiar as chaves aqui, o aplicativo não se conectará!
-            apiKey: "COLE_SUA_API_KEY_AQUI", // Exemplo: "AIzaSyC..."
-            authDomain: "COLE_SEU_AUTH_DOMAIN_AQUI", // Exemplo: "coruja-play-producao.firebaseapp.com"
-            projectId: "COLE_SEU_PROJECT_ID_AQUI", // Exemplo: "coruja-play-producao"
-            // Você pode deixar o restante como está ou adicionar as outras chaves:
-            storageBucket: "COLE_SEU_STORAGE_BUCKET_AQUI",
-            messagingSenderId: "COLE_SEU_MESSAGING_SENDER_ID_AQUI",
-            appId: "COLE_SEU_APP_ID_AQUI"
-        };
-        // =========================================================================
-        
-        let currentUserId = null;
-        let clientsData = {}; // Armazena os dados dos clientes, indexados pelo ID do documento
+    let clientes = JSON.parse(localStorage.getItem('coruja_clientes') || '[]');
 
-        // Elementos do DOM: MOVIDO PARA CIMA PARA EVITAR ReferenceError
-        const loadingSpinner = document.getElementById('loadingSpinner');
-        const mainContent = document.getElementById('mainContent');
-        const userIdDisplay = document.getElementById('userIdDisplay');
-        const clientsList = document.getElementById('clientsList');
-        const loadingClients = document.getElementById('loadingClients');
-        const addClientBtn = document.getElementById('addClientBtn');
-        const editClientBtn = document.getElementById('editClientBtn');
-        const deleteClientBtn = document.getElementById('deleteClientBtn');
-        const clientDetails = document.getElementById('clientDetails');
-        const detailsPlaceholder = document.getElementById('detailsPlaceholder');
-        const clientModal = document.getElementById('clientModal');
-        const clientForm = document.getElementById('clientForm');
-        const modalTitle = document.getElementById('modalTitle');
-        const modalCloseBtn = document.getElementById('modalCloseBtn');
-        
-        let selectedClientId = null;
-        const COLLECTION_NAME = 'clients';
+    function save(){ localStorage.setItem('coruja_clientes', JSON.stringify(clientes)); }
+    function formatBRDate(dateStr){ if(!dateStr) return ''; const d = new Date(dateStr); return d.toLocaleDateString('pt-BR'); }
+    function daysUntil(dateStr){ const today = new Date(); const d = new Date(dateStr + 'T00:00:00'); const diff = Math.ceil((d - new Date(today.getFullYear(), today.getMonth(), today.getDate()))/(1000*60*60*24)); return diff; }
 
+    function getAppIcon(app){
+      switch(app){
+        case 'Coruja Play': return '🦉';
+        case 'IPTV Smarters': return '📺';
+        case 'DuplexPlay': return '🎬';
+        case 'Smart STB': return '💡';
+        case 'XCIPTV': return '⚙️';
+        case 'Flix IPTV': return '🎥';
+        case 'SET IPTV': return '📡';
+        case 'SmartOne IPTV': return '💎';
+        case 'Net IPTV': return '🌐';
+        case 'IBO Player': return '🧩';
+        case 'Mega Player': return '🔊';
+        case 'Bay IPTV': return '🦈';
+        case 'Smart IPTV (SIPTV)': return '🔴';
+        default: return '🔘';
+      }
+    }
 
-        // Variáveis globais (disponíveis no Canvas)
-        const appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId;
+    function render(filter=''){
+      tabelaBody.innerHTML='';
+      clientes.forEach((c, idx)=>{
+        if(filter && !c.cliente.toLowerCase().includes(filter.toLowerCase())) return;
+        const tr = document.createElement('tr');
+        const days = daysUntil(c.vencimento);
+        let statusLabel = '';
+        if(days < 0) statusLabel = `<span class="tag expired">Vencido (${Math.abs(days)}d)</span>`;
+        else if(days <= 3) statusLabel = `<span class="tag soon">Vence em ${days} dia(s)</span>`;
+        else statusLabel = `<span class="tag">OK</span>`;
 
-        // Inicializa o Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        
-        // Verifica se as chaves foram coladas antes de tentar o login
-        if (firebaseConfig.apiKey.includes('COLE_SUA_API_KEY_AQUI')) {
-             // Exibe uma mensagem de erro na tela se o usuário não colou as chaves
-             loadingSpinner.classList.add('hidden'); 
-             document.getElementById('mainContent').classList.remove('hidden');
-             document.getElementById('mainContent').innerHTML = `
-                <div class="max-w-4xl mx-auto p-8 card bg-red-50 border-red-300 text-red-800 text-center">
-                    <h1 class="text-xl font-bold mb-4">ERRO DE CONFIGURAÇÃO</h1>
-                    <p class="mb-4">Por favor, cole as chaves de configuração do Firebase (apiKey, authDomain, projectId, etc.) no arquivo
-                    <code class="font-mono bg-red-100 p-1 rounded">iptv_manager_v3.html</code> dentro da variável <code class="font-mono bg-red-100 p-1 rounded">firebaseConfig</code>.
-                    </p>
-                    <p>Consulte as instruções do chat para obter as chaves corretas.</p>
-                </div>
-            `;
-            // Interrompe o restante do script
-            console.error("ERRO GRAVE: As chaves do Firebase não foram configuradas. Por favor, cole as chaves obtidas no Console do Firebase.");
-            throw new Error("API Key não configurada.");
+        tr.innerHTML = `
+          <td>${c.cliente}</td>
+          <td><span class="app-icon">${getAppIcon(c.app)}</span>${c.app}</td>
+          <td>R$ ${Number(c.preco).toFixed(2)}</td>
+          <td>${c.mac||''}</td>
+          <td>${c.chave||''}</td>
+          <td>${c.telefone||''}</td>
+          <td>${formatBRDate(c.vencimento)}</td>
+          <td>${statusLabel}</td>
+          <td class="actions">
+            <button onclick="openWhatsApp(${idx})">Enviar WhatsApp</button>
+            <button onclick="copiarPIX()">Copiar PIX</button>
+            <button onclick="editar(${idx})">Editar</button>
+            <button onclick="remover(${idx})" style="background:#e24b4b">Remover</button>
+          </td>
+        `;
+        tabelaBody.appendChild(tr);
+      });
+    }
+
+    function gerarMensagem(c){
+      const venc = formatBRDate(c.vencimento);
+      return `Olá ${c.cliente},\\n\\nInformamos que a sua assinatura *${c.app}* com vencimento em ${venc} está próxima / vencida.\\nValor: R$ ${Number(c.preco).toFixed(2)}.\\n\\nPara regularizar, envie o pagamento via PIX:\\nNome: ${PIX_NAME}\\nBanco: ${PIX_BANK}\\nChave PIX: ${PIX_KEY}\\n\\nApós o pagamento, por favor envie o comprovante aqui.\\n\\nObrigado!`;
+    }
+
+    function sanitizePhone(phone){ if(!phone) return ''; return phone.replace(/\\D/g, ''); }
+
+    window.openWhatsApp = function(idx){
+      const c = clientes[idx];
+      if(!c || !c.telefone){ alert('Cliente não tem telefone cadastrado'); return; }
+      const tel = sanitizePhone(c.telefone);
+      const text = encodeURIComponent(gerarMensagem(c));
+      const url = `https://wa.me/${tel}?text=${text}`;
+      window.open(url,'_blank');
+    }
+
+    window.copiarPIX = function(){
+      navigator.clipboard.writeText(`${PIX_NAME} - ${PIX_BANK} - PIX: ${PIX_KEY}`).then(()=>{
+        alert('Chave PIX copiada para a área de transferência');
+      });
+    }
+
+    window.editar = function(idx){
+      const c = clientes[idx];
+      clienteInput.value = c.cliente;
+      appInput.value = c.app;
+      precoInput.value = c.preco;
+      macInput.value = c.mac || '';
+      chaveInput.value = c.chave || '';
+      telInput.value = c.telefone || '';
+      vencInput.value = c.vencimento;
+      clientes.splice(idx,1);
+      save(); render(search.value);
+    }
+
+    window.remover = function(idx){
+      if(confirm('Remover este cliente?')){
+        clientes.splice(idx,1);
+        save(); render(search.value);
+      }
+    }
+
+    form.addEventListener('submit', e=>{
+      e.preventDefault();
+      const novo = {
+        cliente: clienteInput.value.trim(),
+        app: appInput.value,
+        preco: precoInput.value,
+        mac: macInput.value.trim(),
+        chave: chaveInput.value.trim(),
+        telefone: telInput.value.trim(),
+        vencimento: vencInput.value
+      };
+      clientes.push(novo); save(); render(search.value); form.reset();
+    });
+
+    search.addEventListener('input', ()=> render(search.value));
+
+    function checkVencimentos(){
+      const aviso = clientes.filter(c => daysUntil(c.vencimento) <= 3);
+      if(aviso.length){
+        const list = aviso.map(a=>`${a.cliente} — vence em ${daysUntil(a.vencimento)} dia(s)`).join('\\n');
+        if(confirm('Há clientes com vencimento em até 3 dias:\\n\\n'+list+'\\n\\nDeseja abrir a lista para enviar WhatsApp agora?')){
+          aviso.forEach(c => {
+            const tel = sanitizePhone(c.telefone);
+            if(!tel) return;
+            const text = encodeURIComponent(gerarMensagem(c));
+            const url = `https://wa.me/${tel}?text=${text}`;
+            window.open(url, '_blank');
+          });
         }
+      }
+    }
 
-
-        // =========================================================================
-        // FUNÇÕES GERAIS DE UI
-        // =========================================================================
-
-        function showMessage(message, type = 'success') {
-            const messageBox = document.getElementById('messageBox');
-            messageBox.textContent = message;
-            messageBox.style.backgroundColor = type === 'success' ? '#10b981' : '#ef4444'; // verde ou vermelho
-            
-            messageBox.classList.remove('hidden');
-            setTimeout(() => { messageBox.style.opacity = 1; }, 10); // Fade in
-            
-            setTimeout(() => {
-                messageBox.style.opacity = 0;
-                setTimeout(() => messageBox.classList.add('hidden'), 300); // Fade out
-            }, 3000);
-        }
-
-        function copyToClipboard(elementId) {
-            const element = document.getElementById(elementId);
-            const text = element.textContent.trim();
-            
-            // Cria um campo de texto temporário
-            const tempInput = document.createElement('textarea');
-            tempInput.value = text;
-            document.body.appendChild(tempInput);
-            
-            // Seleciona e copia
-            tempInput.select();
-            try {
-                document.execCommand('copy');
-                showMessage('Copiado para a área de transferência!', 'success');
-            } catch (err) {
-                showMessage('Falha ao copiar. Tente manualmente.', 'error');
-            }
-            document.body.removeChild(tempInput);
-        }
-        window.copyToClipboard = copyToClipboard; // Torna global para uso em onclick
-
-        // =========================================================================
-        // FUNÇÕES DE DATA E FORMATO
-        // =========================================================================
-        
-        // Retorna a diferença em dias entre a data atual e a data de expiração
-        function getDaysUntilExpiration(expirationDateString) {
-            const oneDay = 24 * 60 * 60 * 1000; // Milissegundos em um dia
-            const today = new Date();
-            today.setHours(0, 0, 0, 0); // Zera hora para comparação de dia
-            
-            const expirationDate = new Date(expirationDateString);
-            expirationDate.setHours(0, 0, 0, 0);
-
-            const diffDays = Math.round((expirationDate.getTime() - today.getTime()) / oneDay);
-            return diffDays;
-        }
-
-        function getExpirationStatus(diffDays) {
-            if (diffDays < 0) return { status: 'Expirado', color: 'bg-red-500' };
-            if (diffDays <= 3) return { status: `Vence em ${diffDays} dias`, color: 'bg-yellow-500' };
-            return { status: `Ativo (${diffDays} dias)`, color: 'bg-green-500' };
-        }
-        
-        function formatDate(dateString) {
-            if (!dateString) return 'N/A';
-            const [year, month, day] = dateString.split('-');
-            return `${day}/${month}/${year}`;
-        }
-
-        // =========================================================================
-        // FUNÇÕES DE RENDERIZAÇÃO
-        // =========================================================================
-
-        function renderClientsList(clients) {
-            clientsList.innerHTML = '';
-            loadingClients.classList.add('hidden');
-
-            if (clients.length === 0) {
-                clientsList.innerHTML = '<p class="text-center text-gray-500 py-4">Nenhum cliente cadastrado.</p>';
-                return;
-            }
-
-            // Ordena os clientes pela data de expiração (os mais próximos de expirar primeiro)
-            clients.sort((a, b) => {
-                const diffA = getDaysUntilExpiration(a.expirationDate);
-                const diffB = getDaysUntilExpiration(b.expirationDate);
-                return diffA - diffB;
-            });
-
-            clients.forEach(client => {
-                const diffDays = getDaysUntilExpiration(client.expirationDate);
-                const status = getExpirationStatus(diffDays);
-
-                const item = document.createElement('div');
-                item.className = `client-item p-3 border border-gray-200 rounded-lg flex justify-between items-center text-gray-800 ${client.id === selectedClientId ? 'bg-indigo-100 border-indigo-400' : ''}`;
-                item.setAttribute('data-id', client.id);
-                item.innerHTML = `
-                    <div>
-                        <p class="font-semibold text-base">${client.name}</p>
-                        <p class="text-xs text-gray-500">${formatDate(client.expirationDate)}</p>
-                    </div>
-                    <span class="px-2 py-0.5 rounded-full text-xs font-medium ${status.color} text-white">
-                        ${status.status}
-                    </span>
-                `;
-
-                item.addEventListener('click', () => {
-                    selectClient(client.id);
-                });
-
-                clientsList.appendChild(item);
-            });
-            
-            // Tenta re-selecionar o cliente, se houver
-            if (selectedClientId && clientsData[selectedClientId]) {
-                displayClientDetails(clientsData[selectedClientId]);
-            } else {
-                 hideClientDetails();
-            }
-        }
-
-        function selectClient(id) {
-            selectedClientId = id;
-            // Atualiza o estado da lista e exibe detalhes
-            renderClientsList(Object.values(clientsData));
-        }
-
-        function displayClientDetails(client) {
-            const diffDays = getDaysUntilExpiration(client.expirationDate);
-            const status = getExpirationStatus(diffDays);
-
-            document.getElementById('detailName').textContent = client.name;
-            document.getElementById('detailId').textContent = client.id;
-            document.getElementById('detailPhone').textContent = client.phone;
-            document.getElementById('detailExpiration').textContent = formatDate(client.expirationDate);
-            document.getElementById('detailStatus').textContent = status.status;
-            document.getElementById('detailStatus').className = `ml-2 px-3 py-1 rounded-full text-xs font-semibold text-white ${status.color}`;
-            document.getElementById('detailNote').textContent = client.note || 'Nenhuma nota.';
-            
-            detailsPlaceholder.classList.add('hidden');
-            clientDetails.classList.remove('hidden');
-        }
-        
-        function hideClientDetails() {
-            selectedClientId = null;
-            clientDetails.classList.add('hidden');
-            detailsPlaceholder.classList.remove('hidden');
-        }
-
-        // =========================================================================
-        // FUNÇÕES DE OPERAÇÃO DO FIREBASE (CRUD)
-        // =========================================================================
-
-        /**
-         * Inicializa o listener de tempo real para a coleção de clientes.
-         * Esta função só é chamada DEPOIS que a autenticação está pronta.
-         */
-        function listenForClients() {
-            // Caminho: /artifacts/{appId}/users/{currentUserId}/clients
-            const clientCollectionRef = collection(db, 'artifacts', appId, 'users', currentUserId, COLLECTION_NAME);
-            
-            // onSnapshot escuta em tempo real as mudanças
-            onSnapshot(clientCollectionRef, (snapshot) => {
-                const newClientsData = {};
-                snapshot.forEach((doc) => {
-                    newClientsData[doc.id] = { id: doc.id, ...doc.data() };
-                });
-                
-                clientsData = newClientsData;
-                
-                // Renderiza a lista de clientes atualizada
-                renderClientsList(Object.values(clientsData));
-
-                if (loadingClients) {
-                    loadingClients.classList.add('hidden');
-                }
-            }, (error) => {
-                console.error("Erro ao escutar clientes:", error);
-                showMessage(`Erro ao carregar dados: ${error.message}`, 'error');
-                loadingClients.textContent = 'Erro ao carregar (verifique o Console e as Regras do Firebase).';
-            });
-        }
-        
-        /**
-         * Adiciona ou atualiza um cliente no Firestore.
-         */
-        async function saveClient(clientData) {
-            try {
-                const dataToSave = {
-                    name: clientData.name,
-                    phone: clientData.phone,
-                    expirationDate: clientData.expirationDate,
-                    note: clientData.note,
-                    createdAt: clientData.createdAt || new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                };
-                
-                const clientCollectionRef = collection(db, 'artifacts', appId, 'users', currentUserId, COLLECTION_NAME);
-
-                if (clientData.id) {
-                    // Atualizar cliente existente
-                    const docRef = doc(clientCollectionRef, clientData.id);
-                    await updateDoc(docRef, dataToSave);
-                    showMessage(`Cliente "${clientData.name}" atualizado com sucesso!`, 'success');
-                } else {
-                    // Adicionar novo cliente
-                    await addDoc(clientCollectionRef, dataToSave);
-                    showMessage(`Cliente "${clientData.name}" adicionado com sucesso!`, 'success');
-                }
-                
-                clientModal.classList.add('hidden');
-            } catch (error) {
-                console.error("Erro ao salvar cliente:", error);
-                showMessage(`Erro ao salvar: ${error.message}`, 'error');
-            }
-        }
-        
-        /**
-         * Deleta um cliente do Firestore.
-         */
-        async function deleteSelectedClient() {
-            if (!selectedClientId || !confirm(`Tem certeza que deseja excluir o cliente "${clientsData[selectedClientId].name}"?`)) {
-                return;
-            }
-
-            try {
-                const clientCollectionRef = collection(db, 'artifacts', appId, 'users', currentUserId, COLLECTION_NAME);
-                const docRef = doc(clientCollectionRef, selectedClientId);
-                await deleteDoc(docRef);
-                
-                showMessage(`Cliente excluído com sucesso!`, 'success');
-                hideClientDetails();
-                selectedClientId = null; // Limpa a seleção
-                // O onSnapshot cuidará de remover da lista automaticamente
-            } catch (error) {
-                console.error("Erro ao deletar cliente:", error);
-                showMessage(`Erro ao deletar: ${error.message}`, 'error');
-            }
-        }
-
-
-        // =========================================================================
-        // EVENT LISTENERS E INICIALIZAÇÃO
-        // =========================================================================
-        
-        // 1. Tratamento de Formulário
-        clientForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            
-            const clientData = {
-                id: document.getElementById('clientId').value, // Será vazio se for novo
-                name: document.getElementById('clientName').value,
-                phone: document.getElementById('clientPhone').value,
-                expirationDate: document.getElementById('clientExpiration').value,
-                note: document.getElementById('clientNote').value
-            };
-            
-            saveClient(clientData);
-        });
-        
-        // 2. Botões de Ação
-        addClientBtn.addEventListener('click', () => {
-            modalTitle.textContent = 'Adicionar Novo Cliente';
-            clientForm.reset();
-            document.getElementById('clientId').value = ''; // Garante que o ID está vazio para 'adicionar'
-            clientModal.classList.remove('hidden');
-        });
-        
-        modalCloseBtn.addEventListener('click', () => {
-            clientModal.classList.add('hidden');
-        });
-
-        editClientBtn.addEventListener('click', () => {
-            if (!selectedClientId || !clientsData[selectedClientId]) return;
-            
-            const client = clientsData[selectedClientId];
-            
-            modalTitle.textContent = 'Editar Cliente';
-            document.getElementById('clientId').value = client.id;
-            document.getElementById('clientName').value = client.name;
-            document.getElementById('clientPhone').value = client.phone;
-            document.getElementById('clientExpiration').value = client.expirationDate;
-            document.getElementById('clientNote').value = client.note;
-            
-            clientModal.classList.remove('hidden');
-        });
-        
-        deleteClientBtn.addEventListener('click', deleteSelectedClient);
-
-
-        // 3. Autenticação e Sincronia de Estado (O PONTO MAIS IMPORTANTE)
-        onAuthStateChanged(auth, async (user) => {
-            // Assim que o Firebase responder sobre a autenticação, removemos o spinner.
-            loadingSpinner.classList.add('hidden'); 
-
-            if (user) {
-                // Usuário autenticado (anonimamente ou com token)
-                currentUserId = user.uid;
-                userIdDisplay.textContent = `ID do Usuário: ${currentUserId}`;
-                
-                mainContent.classList.remove('hidden'); 
-                
-                // *** AGORA, e SOMENTE AGORA, buscamos os dados do Firestore ***
-                listenForClients();
-                
-                // Certifica-se de que o elemento de carregamento de clientes não está mais visível
-                loadingClients.classList.add('hidden'); 
-            } else {
-                // Se não houver token inicial, tenta o login anônimo
-                try {
-                    await signInAnonymously(auth);
-                    // O onAuthStateChanged será chamado novamente com o 'user' logado.
-                } catch (error) {
-                    // Exibe erro amigável se a API Key for válida, mas o login falhar por outro motivo
-                    const errorMessage = `ERRO: Não foi possível autenticar. Detalhes: ${error.code || error.message}`;
-                    console.error("Erro no login anônimo:", error);
-                    userIdDisplay.textContent = 'ERRO: Não foi possível autenticar.';
-                    mainContent.innerHTML = `<div class="text-center p-8 text-red-600 bg-red-100 rounded-lg">${errorMessage}</div>`;
-                }
-            }
-        });
-    </script>
+    render();
+    setTimeout(checkVencimentos, 500);
+  </script>
 </body>
 </html>
